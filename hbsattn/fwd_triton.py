@@ -173,7 +173,6 @@ class _HBSAttentionFunction(torch.autograd.Function):
         '''
         '''
         
-        assert causal == True, "causal must be True"
         assert block_mask.dtype == torch.bool, "block_mask must be a boolean tensor"
         
         if num_q_block is None or cu_q_block is None or q_block_to_batch is None or cu_num_q_block is None:
