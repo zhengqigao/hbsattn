@@ -56,7 +56,7 @@ def _fwd_kernel(
     
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
-    q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m)
+    q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m, other=0.0)
     
 
     # accumulator
@@ -92,11 +92,11 @@ def _fwd_kernel(
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
-            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n)
-            v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n)
+            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n, other=0.0)
+            v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n, other=0.0)
             
             # core part: online Softmax
-            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
+            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32) ## TODO: in the lask k block, might be a problem because
             qk += tl.dot(q_block, k_block)
             qk *= softmax_scale
             
@@ -109,9 +109,9 @@ def _fwd_kernel(
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
             
-            # # BUG: have to store and immediately load 
-            tl.store(tmp_ptr, alpha, mask = off_m < end_m)
-            alpha = tl.load(tmp_ptr, mask = off_m < end_m)
+            # # # BUG: have to store and immediately load 
+            # tl.store(tmp_ptr, alpha, mask = off_m < end_m)
+            # alpha = tl.load(tmp_ptr, mask = off_m < end_m)
             
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
@@ -122,8 +122,8 @@ def _fwd_kernel(
 
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
     l_recip = 1 / l_i
-    tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
-    l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
+    # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
+    # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
     
     acc = acc * l_recip[:,None]
     acc = acc.to(out.dtype.element_ty)
