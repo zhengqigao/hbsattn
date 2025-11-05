@@ -108,6 +108,7 @@ def _fwd_kernel(
             p = p.to(v.type.element_ty)
             acc += tl.dot(p, v_block)
             m_i = m_ij
+    # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
     
     l_recip = 1 / l_i[:, None]
     acc = acc * l_recip
