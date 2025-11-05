@@ -47,7 +47,7 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         current_q_seq_len = batch_q_end_idx - batch_q_start_idx
         current_k_seq_len = batch_k_end_idx - batch_k_start_idx
         offset = current_k_seq_len - current_q_seq_len
-        
+        print(f"offset: {offset}")
         for i in range(qk.shape[0]):
             for j in range(qk.shape[1]):
                 q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
