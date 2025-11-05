@@ -26,8 +26,8 @@ if __name__ == "__main__":
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
-    nhead_k = 1
-    nhead_q = 1
+    nhead_k = 2
+    nhead_q = 4
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
