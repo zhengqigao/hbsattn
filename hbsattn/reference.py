@@ -84,6 +84,8 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
     
     if torch.isnan(output).any():
         warnings.warn("Warning: NaN detected in output of hbsattn_reference_v1_base. It is possible if the block mask makes a q block not attend to any k block.")
+        nan_indices = torch.isnan(output).nonzero(as_tuple=True)
+        print(f"NaN found at indices: {nan_indices}")
     return output
 
 def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
@@ -161,7 +163,8 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
     
     if torch.isnan(output).any():
         warnings.warn("Warning: NaN detected in output of hbsattn_reference_v2_with_pytorch. It is possible if the block mask makes a q block not attend to any k block.")
-    
+        nan_indices = torch.isnan(out).nonzero(as_tuple=True)
+        print(f"NaN found at indices: {nan_indices}")
     return output
 
 def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
@@ -241,5 +244,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     
     if torch.isnan(out).any():
         warnings.warn("Warning: NaN detected in output of hbsattn_reference_v3_qkallfirst. It is possible if the block mask makes a q block not attend to any k block.")
+        nan_indices = torch.isnan(out).nonzero(as_tuple=True)
+        print(f"NaN found at indices: {nan_indices}")
     
     return out
