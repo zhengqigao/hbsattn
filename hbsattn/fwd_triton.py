@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from hbsattn.utils import calculate_blocks
 
 @triton.jit
-def _fwd_kernel_backup(
+def _fwd_kernel(
     q,
     k,
     v,
@@ -109,8 +109,8 @@ def _fwd_kernel_backup(
             alpha = tl.exp(m_i - m_ij)
             
             # # BUG: have to store and immediately load 
-            # tl.store(tmp_ptr, alpha, mask = off_m < end_m)
-            # alpha = tl.load(tmp_ptr, mask = off_m < end_m)
+            tl.store(tmp_ptr, alpha, mask = off_m < end_m)
+            alpha = tl.load(tmp_ptr, mask = off_m < end_m)
             
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
@@ -123,6 +123,9 @@ def _fwd_kernel_backup(
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
     
     l_recip = 1 / l_i[:, None]
+    tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
+    l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
+    
     acc = acc * l_recip
     acc = acc.to(out.dtype.element_ty)
     
@@ -134,7 +137,7 @@ def _fwd_kernel_backup(
     tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 @triton.jit
-def _fwd_kernel(
+def _fwd_kernel_backup(
     q,
     k,
     v,
