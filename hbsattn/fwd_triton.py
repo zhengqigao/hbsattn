@@ -243,7 +243,7 @@ def _fwd_kernel(
             # tl.store(t_ptrs, acc_o_scale)
             # acc_o_scale = tl.load(t_ptrs)
             acc = acc * acc_o_scale[:, None]
-            p = p.to(v.dtype)
+            p = p.to(v.type.element_ty)
             acc += tl.dot(p, v_block)
 
             # -- update statistics
