@@ -12,16 +12,22 @@ from hbsattn.utils import calculate_blocks
 
 @pytest.mark.parametrize("causal", [False, True])
 @pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)])  # nhead_q % nhead_k == 0
-@pytest.mark.parametrize("softmax_scale", [None, 0.5])
+@pytest.mark.parametrize("softmax_scale", [None, 0.333])
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32])
 @pytest.mark.parametrize("q_block_size", [16, 4])
 @pytest.mark.parametrize("k_block_size", [16, 8])
-def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size):
+@pytest.mark_parametrize("k_q_same_seqlen", [True, False])
+def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen):
     device = torch.cuda.current_device()
 
-    cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
+    if k_q_same_seqlen:
+        cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
+        cu_q_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
+    else:
+        cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
+        cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
+    
     k_seqlen = cu_k_seqlens[-1].item()
-    cu_q_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
     q_seqlen = cu_q_seqlens[-1].item()
     
     headdim = 16
