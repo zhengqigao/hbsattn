@@ -96,8 +96,8 @@ def _fwd_kernel(
             v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n)
             
             # core part: online Softmax
-            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32, allow_tf32=False)
-            qk += tl.dot(q_block, tl.trans(k_block))
+            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
+            qk += tl.dot(q_block, tl.trans(k_block), allow_tf32=False)
             qk *= softmax_scale
             
             if causal:
