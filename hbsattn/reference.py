@@ -139,6 +139,7 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
                value = v[:,head_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
                attn_mask = current_mask, # shape (block_seq_len, seq_len_k)
                is_causal = False, # we have incoporated all constraints in the current_mask.
+               scale = softmax_scale,
                )
             output[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_idx, :] = out
     
@@ -163,7 +164,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
 
-    qk = torch.einsum('nhd,shd->nsh', q, k) # shape (seq_len_q, seq_len_k, nhead)
+    qk = torch.einsum('nhd,shd->nsh', q, k) * softmax_scale # shape (seq_len_q, seq_len_k, nhead)
     
     # construct a large overall mask named total_mask
     # First, construct the in_batch_mask and causl_mask together at the same time (same in the nhead dimension)
