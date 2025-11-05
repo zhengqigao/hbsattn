@@ -78,6 +78,10 @@ def _fwd_kernel(
     for off_k_block in range(k_block_start, k_block_end):
         if tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk):
             start_n = tl.load(cu_k_block + off_k_block)
+            
+            if causal and end_m - batch_q_start_idx + offset < start_n - batch_k_start_idx:
+                continue # the end of the q block is even before the start of the k block, so in the causal setting, no attention performed.
+            
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n)
@@ -115,7 +119,9 @@ def _fwd_kernel(
 def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
     out = torch.empty_like(q).contiguous()
-
+    
+    print(f"in _forward, cu_num_q_block: {cu_num_q_block}, cu_num_k_block: {cu_num_k_block}")
+    
     nhead_q = q.shape[1]
     nhead_k = k.shape[1]
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
