@@ -74,17 +74,17 @@ if __name__ == "__main__":
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
     print("out", out, torch.isnan(out).any())
     # Find the index of the most different value between out and golden_ref_v1, and show their values
-    diff = (out - golden_ref_v1).abs()
-    max_diff = diff.max()
-    max_idx = (diff == max_diff).nonzero(as_tuple=True)
+    # diff = (out - golden_ref_v1).abs()
+    # max_diff = diff.max()
+    # max_idx = (diff == max_diff).nonzero(as_tuple=True)
     
-    # To support multi-dim indexing and show values:
-    if max_diff > 0:
-        print(f"Max absolute difference is {max_diff.item()} at index {max_idx}.")
-        print("out value at this index:", out[max_idx].item())
-        print("golden_ref_v1 value at this index:", golden_ref_v1[max_idx].item())
-    else:
-        print("All values in 'out' and 'golden_ref_v1' are identical.")
+    # # To support multi-dim indexing and show values:
+    # if max_diff > 0:
+    #     print(f"Max absolute difference is {max_diff.item()} at index {max_idx}.")
+    #     print("out value at this index:", out[max_idx].item())
+    #     print("golden_ref_v1 value at this index:", golden_ref_v1[max_idx].item())
+    # else:
+    #     print("All values in 'out' and 'golden_ref_v1' are identical.")
 
     # benchmarking start here
     benchmark({
