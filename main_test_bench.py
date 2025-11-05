@@ -39,14 +39,9 @@ if __name__ == "__main__":
     num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_seqlens, k_block_size)
 
 
-    block_mask = torch.randint(
-        low=0,
-        high=2,
-        size=(nhead, num_q_block, num_k_block),
-        dtype=torch.bool,
-        device=device
-    )
-    block_mask[:,:,0] = True # make sure at least one k block is needed for each q.
+    # Important: note if block_mask is not set properly, then it is possible for a q block not to attend to any k block, and cause the output to be NaN.
+    block_mask = (torch.rand(nhead, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
+
     # block_mask = block_mask.fill_(1).contiguous()
     
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
