@@ -11,15 +11,7 @@ if __name__ == "__main__":
     
     
     device = torch.cuda.current_device()
-    # cu_seqlens = torch.tensor([0, 4], dtype=torch.int32, device=device)
-    # max_seqlen = int((cu_seqlens[1:] - cu_seqlens[:-1]).max().item())
-    # seqlen = cu_seqlens[-1].item()
-    
-    # nhead = 1
-    # headdim = 1
-    # q_block_size = 2
-    # k_block_size = 2
-    
+
     causal = True
     softmax_scale = None
     
