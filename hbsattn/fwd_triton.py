@@ -189,7 +189,6 @@ def _fwd_kernel(
 
     # accumulator
     m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
-    l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
     lse_i = tl.zeros([BLOCK_M], dtype=tl.float32)
     acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
     
