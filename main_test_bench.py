@@ -32,7 +32,7 @@ if __name__ == "__main__":
     
     headdim = 16
     q_block_size = 16
-    k_block_size = 16
+    k_block_size = 8
 
     q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
