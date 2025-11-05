@@ -30,8 +30,8 @@ if __name__ == "__main__":
     q_block_size = 16
     k_block_size = 16
 
-    q = torch.ones(seqlen, nhead, headdim, device=device, dtype=dtype)
-    k = torch.ones(seqlen, nhead, headdim, device=device, dtype=dtype)
+    q = torch.randn(seqlen, nhead, headdim, device=device, dtype=dtype)
+    k = torch.randn(seqlen, nhead, headdim, device=device, dtype=dtype)
     v = torch.randn(seqlen, nhead, headdim, device=device, dtype=dtype)
     
 
