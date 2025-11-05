@@ -240,8 +240,8 @@ def _fwd_kernel(
             acc_o_scale = tl.exp(m_i - m_ij)
 
             # BUG: have to store and immediately load
-            # tl.store(t_ptrs, acc_o_scale)
-            # acc_o_scale = tl.load(t_ptrs)
+            tl.store(tmp_ptr, acc_o_scale)
+            acc_o_scale = tl.load(tmp_ptr)
             acc = acc * acc_o_scale[:, None]
             p = p.to(v.type.element_ty)
             acc += tl.dot(p, v_block)
@@ -254,8 +254,8 @@ def _fwd_kernel(
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
     o_scale = tl.exp(m_i - lse_i)
     # # BUG: have to store and immediately load
-    # tl.store(t_ptrs, o_scale)
-    # o_scale = tl.load(t_ptrs)
+    tl.store(tmp_ptr, o_scale)
+    o_scale = tl.load(tmp_ptr)
     acc = acc * o_scale[:, None]
     acc = acc.to(out.dtype.element_ty)
     
