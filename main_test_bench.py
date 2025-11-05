@@ -80,7 +80,6 @@ if __name__ == "__main__":
 
     # To support multi-dim indexing and show values:
     if max_diff > 0:
-        idx_str = ", ".join(str(i.item()) for i in [arr[0] for arr in max_idx])
         print(f"Max absolute difference is {max_diff.item()} at index {max_idx}.")
         print("out value at this index:", out[max_idx].item())
         print("golden_ref_v1 value at this index:", golden_ref_v1[max_idx].item())

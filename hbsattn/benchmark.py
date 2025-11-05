@@ -62,6 +62,7 @@ def benchmark(
    
     times = []
     result = None
+    error_info = None
 
     for i in range(n_runs):
 
@@ -74,6 +75,8 @@ def benchmark(
         
         elapsed = time.perf_counter() - start
         
+        if golden is not None and i == 0:
+            error_info = _check_correctness(golden, result, name)
 
         if i >= n_warmup:
             times.append(elapsed)
@@ -85,10 +88,6 @@ def benchmark(
     max_time = np.max(times) 
     
     print(f"Average Time ({n_runs} runs w/ {n_warmup} warmups): {mean_time:.3e} ± {std_time:.3e} seconds")
-    
-    error_info = None
-    if golden is not None:
-        error_info = _check_correctness(golden, result, name)
 
     
     return {
