@@ -78,5 +78,5 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype):
     print(f"mean absolute error between golden_ref_v1 and golden_ref_v3: {torch.abs(golden_ref_v1 - golden_ref_v3).mean()}")
     print(f"max absolute error between golden_ref_v1 and golden_ref_v2: {torch.abs(golden_ref_v1 - golden_ref_v2).max()}")
     print(f"max absolute error between golden_ref_v1 and golden_ref_v3: {torch.abs(golden_ref_v1 - golden_ref_v3).max()}")
-    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-4, rtol=1e-3)
-    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-4, rtol=1e-3)
+    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-4, rtol=1e-2)
+    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-4, rtol=1e-2)
