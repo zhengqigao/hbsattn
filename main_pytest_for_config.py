@@ -16,7 +16,7 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32])
 @pytest.mark.parametrize("q_block_size", [16, 4])
 @pytest.mark.parametrize("k_block_size", [16, 8])
-@pytest.mark_parametrize("k_q_same_seqlen", [True, False])
+@pytest.mark.parametrize("k_q_same_seqlen", [True, False])
 def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen):
     device = torch.cuda.current_device()
 
