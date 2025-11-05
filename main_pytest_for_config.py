@@ -13,7 +13,7 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("causal", [False, True])
 @pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)])  # nhead_q % nhead_k == 0
 @pytest.mark.parametrize("softmax_scale", [None, 0.5])
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
 def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype):
     device = torch.cuda.current_device()
 
