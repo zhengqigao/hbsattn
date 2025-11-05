@@ -74,6 +74,7 @@ if __name__ == "__main__":
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
     print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
+    print("out", out, torch.isnan(out).any())
     
     # benchmarking start here
     benchmark({
@@ -97,12 +98,12 @@ if __name__ == "__main__":
         'name': 'hbsattn_reference_v3_qkallfirst'
     }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    # benchmark({
-    #     'golden': golden_ref_v1,
-    #     'n_runs': 10,
-    #     'n_warmup': 4,
-    #     'name': 'HBSAttention'
-    # }, HBSAttention, q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    benchmark({
+        'golden': golden_ref_v1,
+        'n_runs': nruns,
+        'n_warmup': nwarmup,
+        'name': 'HBSAttention'
+    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
 
     
