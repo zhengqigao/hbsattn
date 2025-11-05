@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
 
-    out = HBSAttention(q, k, v, cu_q_seqlens, max_k_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    # out = HBSAttention(q, k, v, cu_q_seqlens, max_k_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
     
     
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
@@ -85,21 +85,21 @@ if __name__ == "__main__":
         'n_runs': 10,
         'n_warmup': 4,
         'name': 'hbsattn_reference_v1_base'
-    }, hbsattn_reference_v1_base, q, k, v, cu_seqlens, cu_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
     
     benchmark({
         'golden': golden_ref_v2,
         'n_runs': 10,
         'n_warmup': 4,
         'name': 'hbsattn_reference_v2_with_pytorch'
-    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_seqlens, cu_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
     
     benchmark({
         'golden': golden_ref_v2,
         'n_runs': 10,
         'n_warmup': 4,
         'name': 'hbsattn_reference_v3_qkallfirst'
-    }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_seqlens, cu_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
     
     # benchmark({
     #     'golden': golden_ref_v1,
