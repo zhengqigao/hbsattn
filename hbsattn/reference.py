@@ -54,7 +54,7 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
                 k_index_in_batch = j - batch_k_start_idx
                 if q_index_in_batch + offset < k_index_in_batch:
                     current_causal_mask[i, j] = False
-        print(f"in v1, block_idx={block_idx}, current_causal_mask & in_batch_mask.unsqueeze(0): {current_causal_mask & in_batch_mask.unsqueeze(0)}")
+        # print(f"in v1, block_idx={block_idx}, current_causal_mask & in_batch_mask.unsqueeze(0): {current_causal_mask & in_batch_mask.unsqueeze(0)}")
         # Finally: block mask, True means the block is needed to be attended to. (same in the block_seq_len dimension)
         current_block_mask = torch.empty((seq_len_k, nhead), dtype=torch.bool, device=block_mask.device)
         for i in range(nhead):
@@ -126,8 +126,8 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
                     k_index_in_batch = j - batch_k_start_idx
                     if q_index_in_batch + offset < k_index_in_batch:
                         current_mask[i, j] = False
-            if head_idx == 0:
-                print(f"in v2, block_idx={block_idx}, current_mask: {current_mask}")
+            # if head_idx == 0:
+            #     print(f"in v2, block_idx={block_idx}, current_mask: {current_mask}")
                 
             # Finally, add block mask, the k blocks that are not needed for the current q block should be ignored.
             for j in range(num_k_block):
