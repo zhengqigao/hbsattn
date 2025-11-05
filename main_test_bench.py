@@ -13,8 +13,8 @@ if __name__ == "__main__":
     
     device = torch.cuda.current_device()
 
-    causal = False
-    softmax_scale = 0.5
+    causal = True
+    softmax_scale = None
     
     dtype = torch.float32
     cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     q_seqlen = cu_q_seqlens[-1].item()
     
     nhead_k = 2
-    nhead_q = 2
+    nhead_q = 4
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
