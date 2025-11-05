@@ -99,11 +99,13 @@ def _fwd_kernel(
             qk += tl.dot(q_block, k_block)
             qk *= softmax_scale
             
+
+            m_ij = tl.maximum(m_i, tl.max(qk, 1))
+            qk -= m_ij[:, None]
+
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
             
-            m_ij = tl.maximum(m_i, tl.max(qk, 1))
-            qk -= m_ij[:, None]
             p = tl.exp(qk)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
