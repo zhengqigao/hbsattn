@@ -37,9 +37,9 @@ if __name__ == "__main__":
     q_block_size = 16
     k_block_size = 16
 
-    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
-    v = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     
 
     num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
