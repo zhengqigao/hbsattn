@@ -32,15 +32,15 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         qk = torch.einsum('mhd,shd->msh', q_block, k) # shape (block_seq_len, seq_len_k, nhead)
         qk *= softmax_scale
         
-        # First: in the same batch mask. 
-        in_batch_mask = torch.zeros((seq_len_k, nhead), dtype=torch.bool, device=q.device)
+        # First: in the same batch mask (same in both the block_seq_len and nhead dimension). 
+        in_batch_mask = torch.zeros((seq_len_k), dtype=torch.bool, device=q.device)
         batch_idx = q_block_to_batch[block_idx]
         batch_k_start_idx = cu_k_seqlens[batch_idx]
         batch_k_end_idx = cu_k_seqlens[batch_idx + 1]
-        in_batch_mask[batch_k_start_idx:batch_k_end_idx,:] = True
+        in_batch_mask[batch_k_start_idx:batch_k_end_idx] = True
         
-        # Second: causal mask, True means the position is allowed to be attended to.
-        current_causal_mask = torch.ones_like(qk, dtype=torch.bool, device=block_mask.device)
+        # Second: causal mask, True means the position is allowed to be attended to. (same in the nhead dimension)
+        current_causal_mask = torch.ones((qk.shape[0], qk.shape[1]), dtype=torch.bool, device=block_mask.device)
         batch_q_start_idx = cu_q_seqlens[batch_idx]
         batch_q_end_idx = cu_q_seqlens[batch_idx + 1]
         
@@ -53,19 +53,19 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
                 q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
                 k_index_in_batch = j - batch_k_start_idx
                 if q_index_in_batch + offset < k_index_in_batch:
-                    current_causal_mask[i, j, :] = False
+                    current_causal_mask[i, j] = False
         
-        # Finally: block mask, True means the block is needed to be attended to.
-        ref = block_mask[:,block_idx,:]
-        current_block_mask = torch.empty_like(in_batch_mask, dtype=torch.bool, device=block_mask.device)
+        # Finally: block mask, True means the block is needed to be attended to. (same in the block_seq_len dimension)
+        current_block_mask = torch.empty((seq_len_k, nhead), dtype=torch.bool, device=block_mask.device)
         for i in range(nhead):
             for j in range(num_k_block):
-                bm = ref[i,j]
+                bm = block_mask[i,block_idx,j]
                 start_idx = cu_k_block[j]
                 end_idx = cu_k_block[j+1]
                 current_block_mask[start_idx:end_idx, i] = bm
+                print(f"i={i}, j={j}, start_idx: {start_idx}, end_idx: {end_idx}")
         
-        total_mask = in_batch_mask & current_causal_mask & current_block_mask.unsqueeze(0)
+        total_mask = in_batch_mask.view(1,-1,1) & current_causal_mask.unsqueeze(-1) & current_block_mask.unsqueeze(0)
         
         
         qk = qk.masked_fill(total_mask.logical_not(), float('-inf'))
@@ -139,8 +139,8 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
                query = q_block.unsqueeze(0), # (1, block_seq_len, headdim),
                key = k[:,head_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
                value = v[:,head_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
-               attn_mask = current_mask, # shape (block_seq_len, seq_len)
-               is_causal = False,
+               attn_mask = current_mask, # shape (block_seq_len, seq_len_k)
+               is_causal = False, # we have incoporated all constraints in the current_mask.
                )
             output[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_idx, :] = out
     
@@ -164,8 +164,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
-    output = torch.empty_like(q)
-    
+
     qk = torch.einsum('nhd,shd->nsh', q, k) # shape (seq_len_q, seq_len_k, nhead)
     
     # construct a large overall mask named total_mask
@@ -201,19 +200,19 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     total_mask = in_batch_and_causal_mask & expanded_block_mask
     
     # Check if any elements in total_mask.sum(dim=1) are equal to zero
-    index = (total_mask.sum(dim=1) == 0) # total_mask[index[0],:,index[1]] contains all False.
-    print(f"total_mask.shape: {total_mask.shape}")
-    print(f"index.shape: {index.shape}")
+    # index = (total_mask.sum(dim=1) == 0) # total_mask[index[0],:,index[1]] contains all False.
+    # print(f"total_mask.shape: {total_mask.shape}")
+    # print(f"index.shape: {index.shape}")
     
     # now masking and calculate output
     qk = qk.masked_fill(total_mask.logical_not(), float('-inf'))
     p = F.softmax(qk, dim=1) # shape (seq_len_q, seq_len_k, nhead)
     
-    if index.numel():
-        for i in range(index.shape[0]):
-            for j in range(index.shape[1]):
-                if index[i,j]:
-                    p[i,:,j] = 0
+    # if index.numel():
+    #     for i in range(index.shape[0]):
+    #         for j in range(index.shape[1]):
+    #             if index[i,j]:
+    #                 p[i,:,j] = 0
     
     out = torch.einsum('nsh,shd->nhd', p, v)
     
