@@ -14,7 +14,9 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)])  # nhead_q % nhead_k == 0
 @pytest.mark.parametrize("softmax_scale", [None, 0.5])
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32])
-def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype):
+@pytest.mark.parametrize("q_block_size", [16, 4])
+@pytest.mark.parametrize("k_block_size", [16, 8])
+def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size):
     device = torch.cuda.current_device()
 
     cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
@@ -23,8 +25,6 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype):
     q_seqlen = cu_q_seqlens[-1].item()
     
     headdim = 16
-    q_block_size = 16
-    k_block_size = 16
 
     q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
