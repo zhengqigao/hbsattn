@@ -22,6 +22,7 @@ def _fwd_kernel(
     head_q_to_k_ratio,
     block_mask,
     out,
+    lse,
     stride_q_s,
     stride_q_h,
     stride_q_d,
@@ -37,6 +38,8 @@ def _fwd_kernel(
     stride_o_s,
     stride_o_h,
     stride_o_d,
+    stride_lse_s,
+    stride_lse_h,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_DIM: tl.constexpr
@@ -118,13 +121,16 @@ def _fwd_kernel(
     out_ptr = out + off_o
     tl.store(out_ptr, acc, mask = off_m[:, None] < end_m)
 
+    off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
+    tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
+
 
 def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
-    out = torch.empty_like(q).contiguous()
-    
+
     print(f"in _forward, cu_num_q_block: {cu_num_q_block}, cu_num_k_block: {cu_num_k_block}")
     
+    seq_len_q = q.shape[0]
     nhead_q = q.shape[1]
     nhead_k = k.shape[1]
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
@@ -137,6 +143,10 @@ def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_bl
     BLOCK_DIM = headdim
     
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
+    
+    
+    out = torch.empty_like(q).contiguous()
+    lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=q.dtype)
     
     # launch kernel grid according to spliting q. 
     grid = (num_q_block, nhead_q)
@@ -156,11 +166,13 @@ def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_bl
         head_q_to_k_ratio,
         block_mask,
         out,
+        lse,
         *q.stride(),
         *k.stride(),
         *v.stride(),
         *block_mask.stride(),
         *out.stride(),
+        *lse.stride(),
         BLOCK_M,
         BLOCK_N,
         BLOCK_DIM
