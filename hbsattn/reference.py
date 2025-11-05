@@ -26,7 +26,7 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
-    print(f"in v1, softmax_scale: {softmax_scale}")
+
     output = torch.empty_like(q)
     
     for block_idx in range(num_q_block):
@@ -106,7 +106,7 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
-    print(f"in v2, softmax_scale: {softmax_scale}")
+
     output = torch.empty_like(q)
     
     for block_idx in range(num_q_block):
@@ -184,7 +184,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
-    print(f"in v3, softmax_scale: {softmax_scale}")
+
     qk = torch.einsum('nhd,shd->nsh', q, k.repeat(1,shared_ratio,1)) * softmax_scale # shape (seq_len_q, seq_len_k, nhead_q)
     
     # construct a large overall mask named total_mask
