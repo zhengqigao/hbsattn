@@ -110,7 +110,7 @@ def _fwd_kernel(
             alpha = tl.exp(m_i - m_ij)
             
             # BUG: have to store and immediately load 
-            tl.store(tmp_ptr, l_ij, mask = off_m < end_m)
+            tl.store(tmp_ptr, alpha, mask = off_m < end_m)
             alpha = tl.load(tmp_ptr, mask = off_m < end_m)
             
             l_i = l_i * alpha + l_ij
