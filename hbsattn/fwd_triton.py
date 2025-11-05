@@ -76,12 +76,12 @@ def _fwd_kernel(
     k_block_end = tl.load(cu_num_k_block + batch_idx + 1)
 
     for off_k_block in range(k_block_start, k_block_end):
-        if tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk):
-            start_n = tl.load(cu_k_block + off_k_block)
-            
-            if causal and end_m - batch_q_start_idx + offset < start_n - batch_k_start_idx:
-                continue # the end of the q block is even before the start of the k block, so in the causal setting, no attention performed.
-            
+        start_n = tl.load(cu_k_block + off_k_block)
+        
+        # we only need to enter the calulcation if two conditions are met:
+        # 1. the block mask is True
+        # 2. causal = False. or when causal = True && the end of the q block is after the start of the k block.
+        if tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk) and (not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx):
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n)
