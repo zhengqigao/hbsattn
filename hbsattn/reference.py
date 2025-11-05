@@ -76,16 +76,20 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         
         
         qk = qk.masked_fill(total_mask.logical_not(), float('-inf'))
-        
+
 
         p = F.softmax(qk, dim=1)
+        
+        # if a q attend to no k, then the corresponding values in p will be NaN. Set them to 0.0. This easily can happen when seqlen_q > seqlen_k: see FlashAttention Github `2.1: Change behavior of causal flag`.
+        p = torch.nan_to_num(p, nan=0.0) 
+        
         out = torch.einsum('msh,shd->mhd', p, v.float().repeat_interleave(shared_ratio, dim=1))
         output[start_q:end_q] = out 
     
-    if torch.isnan(output).any():
-        warnings.warn("Warning: NaN detected in output of hbsattn_reference_v1_base. It is possible if the block mask makes a q block not attend to any k block.")
-        nan_indices = torch.isnan(output).nonzero(as_tuple=True)
-        print(f"NaN found at indices: {nan_indices}")
+    # if torch.isnan(output).any():
+    #     warnings.warn("Warning: NaN detected in output of hbsattn_reference_v1_base. It is possible if the block mask makes a q block not attend to any k block.")
+    #     nan_indices = torch.isnan(output).nonzero(as_tuple=True)
+    #     print(f"NaN found at indices: {nan_indices}")
     return output
 
 def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
@@ -234,11 +238,8 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     qk = qk.masked_fill(total_mask.logical_not(), float('-inf'))
     p = F.softmax(qk, dim=1) # shape (seq_len_q, seq_len_k, nhead_q)
     
-    # if index.numel():
-    #     for i in range(index.shape[0]):
-    #         for j in range(index.shape[1]):
-    #             if index[i,j]:
-    #                 p[i,:,j] = 0
+    # if a q attend to no k, then the corresponding values in p will be NaN. Set them to 0.0. This easily can happen when seqlen_q > seqlen_k: see FlashAttention Github `2.1: Change behavior of causal flag`.
+    p = torch.nan_to_num(p, nan=0.0) 
     
     out = torch.einsum('nsh,shd->nhd', p, v.float().repeat_interleave(shared_ratio, dim=1)).to(q.dtype)
     
