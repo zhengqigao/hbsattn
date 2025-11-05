@@ -4,7 +4,7 @@ import math
 import torch.nn.functional as F
 from hbsattn.utils import calculate_blocks
 from torch.nn.functional import scaled_dot_product_attention
-
+import warnings
 
 def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
     
@@ -74,7 +74,9 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         p = F.softmax(qk, dim=1)
         out = torch.einsum('msh,shd->mhd', p, v)
         output[start_q:end_q] = out 
-        
+    
+    if torch.isnan(output).any():
+        warnings.warn("Warning: NaN detected in output of hbsattn_reference_v1_base")
     return output
 
 def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
@@ -141,6 +143,10 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
                is_causal = False,
                )
             output[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_idx, :] = out
+    
+    if torch.isnan(output).any():
+        warnings.warn("Warning: NaN detected in output of hbsattn_reference_v2_with_pytorch")
+    
     return output
 
 def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
@@ -210,4 +216,8 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
                     p[i,:,j] = 0
     
     out = torch.einsum('nsh,shd->nhd', p, v)
+    
+    if torch.isnan(out).any():
+        warnings.warn("Warning: NaN detected in output of hbsattn_reference_v3_qkallfirst")
+    
     return out
