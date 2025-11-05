@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # k_block_size = 2
     
     dtype = torch.float32
-    cu_seqlens = torch.tensor([0, 32, 64, 96], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    cu_seqlens = torch.tensor([0, 32], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     max_seqlen = int((cu_seqlens[1:] - cu_seqlens[:-1]).max().item())
     seqlen = cu_seqlens[-1].item()
     
