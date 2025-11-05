@@ -42,8 +42,8 @@ if __name__ == "__main__":
     v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     
 
-    num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
-    num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_k_seqlens, k_block_size)
+    num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
+    num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
 
 
     # Important: note if block_mask is not set properly, then it is possible for a q block not to attend to any k block, and cause the output to be NaN.
@@ -64,11 +64,11 @@ if __name__ == "__main__":
     # run once to get a golden reference
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
 
-    golden_ref_v2 = hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    golden_ref_v2 = hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    # out = HBSAttention(q, k, v, cu_q_seqlens, max_k_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
     
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
@@ -81,21 +81,21 @@ if __name__ == "__main__":
         'n_runs': nruns,
         'n_warmup': nwarmup,
         'name': 'hbsattn_reference_v1_base'
-    }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
     benchmark({
         'golden': golden_ref_v1,
         'n_runs': nruns,
         'n_warmup': nwarmup,
         'name': 'hbsattn_reference_v2_with_pytorch'
-    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
     benchmark({
         'golden': golden_ref_v1,
         'n_runs': nruns,
         'n_warmup': nwarmup,
         'name': 'hbsattn_reference_v3_qkallfirst'
-    }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
     # benchmark({
     #     'golden': golden_ref_v1,

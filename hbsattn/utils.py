@@ -43,9 +43,10 @@ def calculate_blocks(cu_seqlen: torch.Tensor, block_size: int) -> tuple[int, tor
     block_to_batch = block_to_batch.cumsum(dim=0, dtype=torch.int32)
     
     return (
-        num_block,
-        cu_block,
-        block_to_batch,
+        num_block, # the total number of blocks 
+        cu_block, # the start and end (sequence) index of each block
+        block_to_batch, # block_to_batch[block_idx] represents the batch index of block_idx
+        cu_num_block, # cu_num_block[batch_idx+1] - cu_num_block[batch_idx] = batch_num_block[batch_idx]
     )
 
 

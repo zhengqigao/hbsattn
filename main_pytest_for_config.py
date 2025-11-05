@@ -36,8 +36,8 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
-    num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
-    num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_k_seqlens, k_block_size)
+    num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
+    num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
 
     block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
     for i in range(num_q_block):
@@ -57,24 +57,24 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
         cu_q_seqlens, cu_k_seqlens, block_mask,
         q_block_size, k_block_size,
         causal, softmax_scale,
-        num_q_block, cu_q_block, q_block_to_batch,
-        num_k_block, cu_k_block, k_block_to_batch
+        num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block,
+        num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block,
     )
     golden_ref_v2 = hbsattn_reference_v2_with_pytorch(
         q, k, v,
         cu_q_seqlens, cu_k_seqlens, block_mask,
         q_block_size, k_block_size,
         causal, softmax_scale,
-        num_q_block, cu_q_block, q_block_to_batch,
-        num_k_block, cu_k_block, k_block_to_batch
+        num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block,
+        num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block,
     )
     golden_ref_v3 = hbsattn_reference_v3_qkallfirst(
         q, k, v,
         cu_q_seqlens, cu_k_seqlens, block_mask,
         q_block_size, k_block_size,
         causal, softmax_scale,
-        num_q_block, cu_q_block, q_block_to_batch,
-        num_k_block, cu_k_block, k_block_to_batch
+        num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block,
+        num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block,
     )
     # Check that all golden refs are finite and close
     assert torch.all(torch.isfinite(golden_ref_v1))

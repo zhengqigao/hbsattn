@@ -6,12 +6,12 @@ from hbsattn.utils import calculate_blocks
 from torch.nn.functional import scaled_dot_product_attention
 import warnings
 
-def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
+def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
     
-    if num_q_block is None or cu_q_block is None or q_block_to_batch is None:
-        num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
-    if num_k_block is None or cu_k_block is None or k_block_to_batch is None:
-        num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_k_seqlens, k_block_size)
+    if num_q_block is None or cu_q_block is None or q_block_to_batch is None or cu_num_q_block is None:
+        num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
+    if num_k_block is None or cu_k_block is None or k_block_to_batch is None or cu_num_k_block is None:
+        num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
         
     assert len(cu_q_seqlens) == len(cu_k_seqlens) and cu_q_seqlens.ndim == 1 and cu_k_seqlens.ndim == 1, "cu_q_seqlens and cu_k_seqlens must be 1D tensors of same length, indicating the start and end indices of each q/k sample. Their length equals the total number of samples + 1."
     
@@ -92,12 +92,12 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
     #     print(f"NaN found at indices: {nan_indices}")
     return output
 
-def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
+def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
     
-    if num_q_block is None or cu_q_block is None or q_block_to_batch is None:
-        num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
-    if num_k_block is None or cu_k_block is None or k_block_to_batch is None:
-        num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_k_seqlens, k_block_size)
+    if num_q_block is None or cu_q_block is None or q_block_to_batch is None or cu_num_q_block is None:
+        num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
+    if num_k_block is None or cu_k_block is None or k_block_to_batch is None or cu_num_k_block is None:
+        num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
     
     assert len(cu_q_seqlens) == len(cu_k_seqlens) and cu_q_seqlens.ndim == 1 and cu_k_seqlens.ndim == 1, "cu_q_seqlens and cu_k_seqlens must be 1D tensors of same length, indicating the start and end indices of each q/k sample. Their length equals the total number of samples + 1."
     
@@ -171,12 +171,12 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
         print(f"NaN found at indices: {nan_indices}")
     return output
 
-def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
+def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
     
-    if num_q_block is None or cu_q_block is None or q_block_to_batch is None:
-        num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
-    if num_k_block is None or cu_k_block is None or k_block_to_batch is None:
-        num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_k_seqlens, k_block_size)
+    if num_q_block is None or cu_q_block is None or q_block_to_batch is None or cu_num_q_block is None:
+        num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
+    if num_k_block is None or cu_k_block is None or k_block_to_batch is None or cu_num_k_block is None:
+        num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
     
     assert len(cu_q_seqlens) == len(cu_k_seqlens) and cu_q_seqlens.ndim == 1 and cu_k_seqlens.ndim == 1, "cu_q_seqlens and cu_k_seqlens must be 1D tensors of same length, indicating the start and end indices of each q/k sample. Their length equals the total number of samples + 1."
     

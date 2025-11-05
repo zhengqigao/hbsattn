@@ -11,9 +11,15 @@ def _fwd_kernel(
     q,
     k,
     v,
-    cu_q_block,
-    cu_k_block,
+    cu_q_seqlens,
+    cu_k_seqlens,
+    causal,
     softmax_scale,
+    cu_q_block, 
+    cu_k_block,
+    q_block_to_batch,
+    cu_num_k_block,
+    head_q_to_k_ratio,
     block_mask,
     out,
     stride_q_s,
@@ -31,12 +37,13 @@ def _fwd_kernel(
     stride_o_s,
     stride_o_h,
     stride_o_d,
-    nhead,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_DIM: tl.constexpr
 ):
-    off_head = tl.program_id(1)
+    off_head_q = tl.program_id(1)
+    off_head_k = off_head_q // head_q_to_k_ratio
+    
     off_q_block = tl.program_id(0)
     off_dim = tl.arange(0, BLOCK_DIM)
     
@@ -45,32 +52,45 @@ def _fwd_kernel(
     off_m = start_m + tl.arange(0, BLOCK_M)
     
     # load the q block
-    q_ptr = q + off_m[:, None] * stride_q_s + off_head * stride_q_h + off_dim[None, :] * stride_q_d
+    q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
     q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m)
     
 
     # accumulator
     m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
     l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
-    acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32) + 2
+    acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
     
-    # k block loop
-    k_block_start = 0
-    k_block_end = tl.cdiv(end_m, BLOCK_N)
+    # batch index 
+    batch_idx = tl.load(q_block_to_batch + off_q_block)
+    
+    # get offset and q and k start/end indices in seq
+    batch_q_start_idx = tl.load(cu_q_seqlens + batch_idx)
+    batch_q_end_idx = tl.load(cu_q_seqlens + batch_idx + 1)
+    batch_k_start_idx = tl.load(cu_k_seqlens + batch_idx)
+    batch_k_end_idx = tl.load(cu_k_seqlens + batch_idx + 1)
+    offset = batch_k_end_idx - batch_q_end_idx
+    
+    # k block loop, start from the same batch as the q block, and end at the last k block in the same batch.
+    k_block_start = tl.load(cu_num_k_block + batch_idx)
+    k_block_end = tl.load(cu_num_k_block + batch_idx + 1)
 
     for off_k_block in range(k_block_start, k_block_end):
-        if tl.load(block_mask + off_head * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk):
+        if tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk):
             start_n = tl.load(cu_k_block + off_k_block)
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
-            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n)
-            v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n)
+            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n)
+            v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n)
             
             # core part: online Softmax
             qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
             qk += tl.dot(q_block, k_block)
             qk *= softmax_scale
-            qk += tl.where(off_m[:, None] >= off_n[None, :], 0, float('-inf'))
+            
+            if causal:
+                qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
+            
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
             qk -= m_ij[:, None]
             p = tl.exp(qk)
@@ -87,18 +107,20 @@ def _fwd_kernel(
     acc = acc * l_recip
     acc = acc.to(out.dtype.element_ty)
     
-    off_o = off_m[:, None] * stride_o_s + off_head * stride_o_h + off_dim[None, :] * stride_o_d
+    off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
     out_ptr = out + off_o
     tl.store(out_ptr, acc, mask = off_m[:, None] < end_m)
 
 
-def _forward(q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch):
+def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
     out = torch.empty_like(q).contiguous()
-    batch_size = cu_seqlens.shape[0] - 1
-    
-    seq_len = q.shape[0]
-    nhead = q.shape[1]
+
+    nhead_q = q.shape[1]
+    nhead_k = k.shape[1]
+    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    head_q_to_k_ratio = nhead_q // nhead_k
+
     headdim = q.shape[2]
     
     BLOCK_M = q_block_size
@@ -108,15 +130,21 @@ def _forward(q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
     
     # launch kernel grid according to spliting q. 
-    grid = (num_q_block, nhead)
+    grid = (num_q_block, nhead_q)
 
     _fwd_kernel[grid](
         q,
         k,
         v,
-        cu_q_block,
-        cu_k_block,
+        cu_q_seqlens,
+        cu_k_seqlens,
+        causal,
         softmax_scale,
+        cu_q_block, 
+        cu_k_block,
+        q_block_to_batch,
+        cu_num_k_block,
+        head_q_to_k_ratio,
         block_mask,
         out,
         *q.stride(),
@@ -124,7 +152,6 @@ def _forward(q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_
         *v.stride(),
         *block_mask.stride(),
         *out.stride(),
-        nhead,
         BLOCK_M,
         BLOCK_N,
         BLOCK_DIM
@@ -134,19 +161,19 @@ def _forward(q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_
 class _HBSAttentionFunction(torch.autograd.Function):
 
     @staticmethod
-    def forward(ctx, q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block = None, cu_q_block = None, q_block_to_batch = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None):
+    def forward(ctx, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block = None, cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
         '''
         '''
         
         assert causal == True, "causal must be True"
         assert block_mask.dtype == torch.bool, "block_mask must be a boolean tensor"
         
-        if num_q_block is None or cu_q_block is None or q_block_to_batch is None:
-            num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_seqlens, q_block_size)
-        if num_k_block is None or cu_k_block is None or k_block_to_batch is None:
-            num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_seqlens, k_block_size)
+        if num_q_block is None or cu_q_block is None or q_block_to_batch is None or cu_num_q_block is None:
+            num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
+        if num_k_block is None or cu_k_block is None or k_block_to_batch is None or cu_num_k_block is None:
+            num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
             
-        return _forward(q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+        return _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     @staticmethod
     def backward(ctx, do):
