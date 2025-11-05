@@ -47,14 +47,14 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         current_q_seq_len = batch_q_end_idx - batch_q_start_idx
         current_k_seq_len = batch_k_end_idx - batch_k_start_idx
         offset = current_k_seq_len - current_q_seq_len
-        print(f"offset: {offset}")
+
         for i in range(qk.shape[0]):
             for j in range(qk.shape[1]):
                 q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
                 k_index_in_batch = j - batch_k_start_idx
                 if q_index_in_batch + offset < k_index_in_batch:
                     current_causal_mask[i, j] = False
-        # print(f"in v1, block_idx={block_idx}, current_causal_mask & in_batch_mask.unsqueeze(0): {current_causal_mask & in_batch_mask.unsqueeze(0)}")
+        
         # Finally: block mask, True means the block is needed to be attended to. (same in the block_seq_len dimension)
         current_block_mask = torch.empty((seq_len_k, nhead), dtype=torch.bool, device=block_mask.device)
         for i in range(nhead):
@@ -63,14 +63,13 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
                 start_idx = cu_k_block[j]
                 end_idx = cu_k_block[j+1]
                 current_block_mask[start_idx:end_idx, i] = bm
-                print(f"i={i}, j={j}, start_idx: {start_idx}, end_idx: {end_idx}")
         
         total_mask = in_batch_mask.view(1,-1,1) & current_causal_mask.unsqueeze(-1) & current_block_mask.unsqueeze(0)
         
         
         qk = qk.masked_fill(total_mask.logical_not(), float('-inf'))
         
-        # print(f"block_idx: {block_idx}, total_mask: {total_mask}, qk: {qk}")
+
         p = F.softmax(qk, dim=1)
         out = torch.einsum('msh,shd->mhd', p, v)
         output[start_q:end_q] = out 
@@ -119,16 +118,14 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
             current_q_seq_len = batch_q_end_idx - batch_q_start_idx
             current_k_seq_len = batch_k_end_idx - batch_k_start_idx
             offset = current_k_seq_len - current_q_seq_len # in most cases, cu_q_seqlens == cu_k_seqlens, so offset is always zero.
-            print(f"offset: {offset}")
+
             for i in range(q_block.shape[0]):
                 for j in range(seq_len_k):
                     q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
                     k_index_in_batch = j - batch_k_start_idx
                     if q_index_in_batch + offset < k_index_in_batch:
                         current_mask[i, j] = False
-            # if head_idx == 0:
-            #     print(f"in v2, block_idx={block_idx}, current_mask: {current_mask}")
-                
+   
             # Finally, add block mask, the k blocks that are not needed for the current q block should be ignored.
             for j in range(num_k_block):
                 if not block_mask[head_idx,block_idx,j]:
@@ -169,8 +166,8 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     qk = torch.einsum('nhd,shd->nsh', q, k) # shape (seq_len_q, seq_len_k, nhead)
     
     # construct a large overall mask named total_mask
-    # First, construct the in_batch_mask and causl_mask together at the same time
-    in_batch_and_causal_mask = torch.zeros((seq_len_q, seq_len_k, nhead), dtype=torch.bool, device=q.device)
+    # First, construct the in_batch_mask and causl_mask together at the same time (same in the nhead dimension)
+    in_batch_and_causal_mask = torch.zeros((seq_len_q, seq_len_k,), dtype=torch.bool, device=q.device)
     for sample_idx in range(batch_size):
         batch_k_start_idx = cu_k_seqlens[sample_idx]
         batch_k_end_idx = cu_k_seqlens[sample_idx + 1]
@@ -183,8 +180,8 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
         
         for i in range(batch_q_start_idx, batch_q_end_idx):
             for j in range(batch_k_start_idx, batch_k_end_idx):
-                if i + offset >= j: 
-                    in_batch_and_causal_mask[i, j, :] = True
+                if i - batch_q_start_idx + offset >= j - batch_k_start_idx: 
+                    in_batch_and_causal_mask[i, j] = True
     
     # Second, construct the block_mask
     expanded_block_mask = torch.zeros((seq_len_q, seq_len_k, nhead), dtype=torch.bool, device=q.device)
@@ -198,7 +195,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
                     end_k_index = cu_k_block[k+1]
                     expanded_block_mask[start_q_index:end_q_index, start_k_index:end_k_index, i] = True
     
-    total_mask = in_batch_and_causal_mask & expanded_block_mask
+    total_mask = in_batch_and_causal_mask.unsqueeze(-1) & expanded_block_mask
     
     # Check if any elements in total_mask.sum(dim=1) are equal to zero
     # index = (total_mask.sum(dim=1) == 0) # total_mask[index[0],:,index[1]] contains all False.
