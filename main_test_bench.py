@@ -77,7 +77,7 @@ if __name__ == "__main__":
     diff = (out - golden_ref_v1).abs()
     max_diff = diff.max()
     max_idx = (diff == max_diff).nonzero(as_tuple=True)
-    max_idx = tuple(max_idx[0].tolist())
+    
     # To support multi-dim indexing and show values:
     if max_diff > 0:
         print(f"Max absolute difference is {max_diff.item()} at index {max_idx}.")
