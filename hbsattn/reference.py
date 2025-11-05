@@ -34,7 +34,7 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
 
         q_block = q[start_q:end_q] # shape (block_seq_len, nhead, headdim)
         
-        qk = torch.einsum('mhd,shd->msh', q_block, k.expand(1,shared_ratio,1)) # shape (block_seq_len, seq_len_k, nhead_q)
+        qk = torch.einsum('mhd,shd->msh', q_block, k.repeat(1,shared_ratio,1)) # shape (block_seq_len, seq_len_k, nhead_q)
         qk *= softmax_scale
         
         # First: in the same batch mask (same in both the block_seq_len and nhead_q dimension). 
@@ -78,7 +78,7 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         
 
         p = F.softmax(qk, dim=1)
-        out = torch.einsum('msh,shd->mhd', p, v.expand(1,shared_ratio,1))
+        out = torch.einsum('msh,shd->mhd', p, v.repeat(1,shared_ratio,1))
         output[start_q:end_q] = out 
     
     if torch.isnan(output).any():
@@ -183,7 +183,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
 
-    qk = torch.einsum('nhd,shd->nsh', q, k.expand(1,shared_ratio,1)) * softmax_scale # shape (seq_len_q, seq_len_k, nhead_q)
+    qk = torch.einsum('nhd,shd->nsh', q, k.repeat(1,shared_ratio,1)) * softmax_scale # shape (seq_len_q, seq_len_k, nhead_q)
     
     # construct a large overall mask named total_mask
     # First, construct the in_batch_mask and causl_mask together at the same time (same in the nhead_q dimension)
@@ -235,7 +235,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     #             if index[i,j]:
     #                 p[i,:,j] = 0
     
-    out = torch.einsum('nsh,shd->nhd', p, v.expand(1,shared_ratio,1))
+    out = torch.einsum('nsh,shd->nhd', p, v.repeat(1,shared_ratio,1))
     
     if torch.isnan(out).any():
         warnings.warn("Warning: NaN detected in output of hbsattn_reference_v3_qkallfirst. It is possible if the block mask makes a q block not attend to any k block.")
