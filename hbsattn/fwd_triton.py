@@ -23,6 +23,7 @@ def _fwd_kernel(
     block_mask,
     out,
     lse,
+    tmp, # See flash_attn_trion.py and flash_attn_triton_og.py 
     stride_q_s,
     stride_q_h,
     stride_q_d,
@@ -63,6 +64,8 @@ def _fwd_kernel(
     m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
     l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
     acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
+    
+    tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
     
     # batch index 
     batch_idx = tl.load(q_block_to_batch + off_q_block)
@@ -105,6 +108,11 @@ def _fwd_kernel(
             p = tl.exp(qk)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
+            
+            # BUG: have to store and immediately load 
+            tl.store(tmp_ptr, l_ij, mask = off_m < end_m)
+            alpha = tl.load(tmp_ptr, mask = off_m < end_m)
+            
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
             
@@ -146,7 +154,8 @@ def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_bl
     
     
     out = torch.empty_like(q).contiguous()
-    lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=q.dtype)
+    lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
+    tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     
     # launch kernel grid according to spliting q. 
     grid = (num_q_block, nhead_q)
@@ -167,6 +176,7 @@ def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_bl
         block_mask,
         out,
         lse,
+        tmp,
         *q.stride(),
         *k.stride(),
         *v.stride(),
