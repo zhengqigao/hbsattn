@@ -19,12 +19,12 @@ if __name__ == "__main__":
     dtype = torch.bfloat16
     # cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     
-    cu_k_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
+    cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) 
     
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     
     headdim = 16
     q_block_size = 16
-    k_block_size = 8
+    k_block_size = 16
 
     q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
