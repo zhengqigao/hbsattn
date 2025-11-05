@@ -44,11 +44,11 @@ if __name__ == "__main__":
     for i in range(num_q_block):
         batch_idx = q_block_to_batch[i]
         first_k_block_idx_in_the_same_batch = None
-        for j in range(k_block_to_batch):
+        for j in range(len(k_block_to_batch)):
             if k_block_to_batch[j] == batch_idx:
                 first_k_block_idx_in_the_same_batch = j
                 break
-        block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch
+        block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
 
     # block_mask = block_mask.fill_(1).contiguous()
     
