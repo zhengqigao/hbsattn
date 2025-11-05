@@ -119,9 +119,7 @@ def _fwd_kernel(
             acc += tl.dot(p, v_block)
             m_i = m_ij
 
-            
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
-    
     l_recip = 1 / l_i
     tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
     l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
