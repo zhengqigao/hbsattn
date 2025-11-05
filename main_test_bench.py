@@ -13,8 +13,8 @@ if __name__ == "__main__":
     
     device = torch.cuda.current_device()
 
-    causal = True
-    softmax_scale = 0.5
+    causal = False
+    softmax_scale = None
     
     dtype = torch.bfloat16
     cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
