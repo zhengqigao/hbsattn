@@ -20,27 +20,38 @@ if __name__ == "__main__":
     # q_block_size = 2
     # k_block_size = 2
     
-    dtype = torch.float32
-    cu_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
-    max_seqlen = int((cu_seqlens[1:] - cu_seqlens[:-1]).max().item())
-    seqlen = cu_seqlens[-1].item()
+    causal = True
+    softmax_scale = None
     
-    nhead = 2
+    dtype = torch.float32
+    cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
+    k_seqlen = cu_k_seqlens[-1].item()
+    
+    cu_q_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
+    q_seqlen = cu_q_seqlens[-1].item()
+    
+    nhead_k = 2
+    nhead_q = 2
+    
+    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    
     headdim = 16
     q_block_size = 16
     k_block_size = 16
 
-    q = torch.randn(seqlen, nhead, headdim, device=device, dtype=dtype)
-    k = torch.randn(seqlen, nhead, headdim, device=device, dtype=dtype)
-    v = torch.randn(seqlen, nhead, headdim, device=device, dtype=dtype)
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     
 
-    num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_seqlens, q_block_size)
-    num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_seqlens, k_block_size)
+    num_q_block, cu_q_block, q_block_to_batch = calculate_blocks(cu_q_seqlens, q_block_size)
+    num_k_block, cu_k_block, k_block_to_batch = calculate_blocks(cu_k_seqlens, k_block_size)
 
 
     # Important: note if block_mask is not set properly, then it is possible for a q block not to attend to any k block, and cause the output to be NaN.
-    block_mask = (torch.rand(nhead, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
+    block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
     for i in range(num_q_block):
         batch_idx = q_block_to_batch[i]
         first_k_block_idx_in_the_same_batch = None
@@ -55,13 +66,13 @@ if __name__ == "__main__":
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
     
     # run once to get a golden reference
-    golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_seqlens, cu_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
 
-    golden_ref_v2 = hbsattn_reference_v2_with_pytorch(q, k, v, cu_seqlens, cu_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    golden_ref_v2 = hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
 
-    golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_seqlens, cu_seqlens, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
 
-    out = HBSAttention(q, k, v, cu_seqlens, max_seqlen, block_mask, q_block_size, k_block_size, True, None, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
+    out = HBSAttention(q, k, v, cu_q_seqlens, max_k_seqlen, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, num_k_block, cu_k_block, k_block_to_batch)
     
     
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())

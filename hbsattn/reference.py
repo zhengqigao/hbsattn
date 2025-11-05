@@ -16,7 +16,12 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
     assert len(cu_q_seqlens) == len(cu_k_seqlens) and cu_q_seqlens.ndim == 1 and cu_k_seqlens.ndim == 1, "cu_q_seqlens and cu_k_seqlens must be 1D tensors of same length, indicating the start and end indices of each q/k sample. Their length equals the total number of samples + 1."
     
     batch_size = len(cu_q_seqlens) - 1 # number of samples
-    nhead = q.shape[1]
+    
+    nhead_q = q.shape[1]
+    nhead_k = k.shape[1]
+    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    shared_ratio = nhead_q // nhead_k
+    
     headdim = q.shape[2]
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
@@ -29,37 +34,39 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
 
         q_block = q[start_q:end_q] # shape (block_seq_len, nhead, headdim)
         
-        qk = torch.einsum('mhd,shd->msh', q_block, k) # shape (block_seq_len, seq_len_k, nhead)
+        qk = torch.einsum('mhd,shd->msh', q_block, k.expand(1,shared_ratio,1)) # shape (block_seq_len, seq_len_k, nhead_q)
         qk *= softmax_scale
         
-        # First: in the same batch mask (same in both the block_seq_len and nhead dimension). 
+        # First: in the same batch mask (same in both the block_seq_len and nhead_q dimension). 
         in_batch_mask = torch.zeros((seq_len_k), dtype=torch.bool, device=q.device)
         batch_idx = q_block_to_batch[block_idx]
         batch_k_start_idx = cu_k_seqlens[batch_idx]
         batch_k_end_idx = cu_k_seqlens[batch_idx + 1]
         in_batch_mask[batch_k_start_idx:batch_k_end_idx] = True
         
-        # Second: causal mask, True means the position is allowed to be attended to. (same in the nhead dimension)
+        # Second: causal mask, True means the position is allowed to be attended to. (same in the nhead_q dimension)
         current_causal_mask = torch.ones((qk.shape[0], qk.shape[1]), dtype=torch.bool, device=block_mask.device)
-        batch_q_start_idx = cu_q_seqlens[batch_idx]
-        batch_q_end_idx = cu_q_seqlens[batch_idx + 1]
-        
-        current_q_seq_len = batch_q_end_idx - batch_q_start_idx
-        current_k_seq_len = batch_k_end_idx - batch_k_start_idx
-        offset = current_k_seq_len - current_q_seq_len
+        if causal:
+            batch_q_start_idx = cu_q_seqlens[batch_idx]
+            batch_q_end_idx = cu_q_seqlens[batch_idx + 1]
+            
+            current_q_seq_len = batch_q_end_idx - batch_q_start_idx
+            current_k_seq_len = batch_k_end_idx - batch_k_start_idx
+            offset = current_k_seq_len - current_q_seq_len
 
-        for i in range(qk.shape[0]):
-            for j in range(qk.shape[1]):
-                q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
-                k_index_in_batch = j - batch_k_start_idx
-                if q_index_in_batch + offset < k_index_in_batch:
-                    current_causal_mask[i, j] = False
+            for i in range(qk.shape[0]):
+                for j in range(qk.shape[1]):
+                    q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
+                    k_index_in_batch = j - batch_k_start_idx
+                    if q_index_in_batch + offset < k_index_in_batch:
+                        current_causal_mask[i, j] = False
         
         # Finally: block mask, True means the block is needed to be attended to. (same in the block_seq_len dimension)
-        current_block_mask = torch.empty((seq_len_k, nhead), dtype=torch.bool, device=block_mask.device)
-        for i in range(nhead):
+        current_block_mask = torch.empty((seq_len_k, nhead_q), dtype=torch.bool, device=block_mask.device)
+        for i in range(nhead_q):
+            head_k_idx = i // shared_ratio
             for j in range(num_k_block):
-                bm = block_mask[i,block_idx,j]
+                bm = block_mask[head_k_idx,block_idx,j]
                 start_idx = cu_k_block[j]
                 end_idx = cu_k_block[j+1]
                 current_block_mask[start_idx:end_idx, i] = bm
@@ -71,7 +78,7 @@ def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q
         
 
         p = F.softmax(qk, dim=1)
-        out = torch.einsum('msh,shd->mhd', p, v)
+        out = torch.einsum('msh,shd->mhd', p, v.expand(1,shared_ratio,1))
         output[start_q:end_q] = out 
     
     if torch.isnan(output).any():
@@ -87,8 +94,13 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
     
     assert len(cu_q_seqlens) == len(cu_k_seqlens) and cu_q_seqlens.ndim == 1 and cu_k_seqlens.ndim == 1, "cu_q_seqlens and cu_k_seqlens must be 1D tensors of same length, indicating the start and end indices of each q/k sample. Their length equals the total number of samples + 1."
     
-    batch_size = len(cu_q_seqlens) - 1
-    nhead = q.shape[1]
+    batch_size = len(cu_q_seqlens) - 1 # number of samples
+    
+    nhead_q = q.shape[1]
+    nhead_k = k.shape[1]
+    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    shared_ratio = nhead_q // nhead_k
+    
     headdim = q.shape[2]
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
@@ -96,9 +108,10 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
     output = torch.empty_like(q)
     
     for block_idx in range(num_q_block):
-        for head_idx in range(nhead):
+        for head_q_idx in range(nhead_q):
+            head_k_idx = head_q_idx // shared_ratio
             
-            q_block = q[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_idx, :] # shape (block_seq_len, headdim)
+            q_block = q[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_q_idx, :] # shape (block_seq_len, headdim)
             
             # construct the mask, initially set attend to every k.
             current_mask = torch.ones((q_block.shape[0], seq_len_k), dtype=torch.bool, device=q.device)
@@ -112,36 +125,37 @@ def hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block
             
             # Second, add causality in the same batch, only <qi, kj> is allowed when i + offset <= j (offset=0 if seqlen_q == seqlen_k) 
             # See flash attention changelog og v2.1 for more details.
-            batch_q_start_idx = cu_q_seqlens[batch_idx]
-            batch_q_end_idx = cu_q_seqlens[batch_idx + 1]
-            
-            current_q_seq_len = batch_q_end_idx - batch_q_start_idx
-            current_k_seq_len = batch_k_end_idx - batch_k_start_idx
-            offset = current_k_seq_len - current_q_seq_len # in most cases, cu_q_seqlens == cu_k_seqlens, so offset is always zero.
+            if causal:
+                batch_q_start_idx = cu_q_seqlens[batch_idx]
+                batch_q_end_idx = cu_q_seqlens[batch_idx + 1]
+                
+                current_q_seq_len = batch_q_end_idx - batch_q_start_idx
+                current_k_seq_len = batch_k_end_idx - batch_k_start_idx
+                offset = current_k_seq_len - current_q_seq_len # in most cases, cu_q_seqlens == cu_k_seqlens, so offset is always zero.
 
-            for i in range(q_block.shape[0]):
-                for j in range(seq_len_k):
-                    q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
-                    k_index_in_batch = j - batch_k_start_idx
-                    if q_index_in_batch + offset < k_index_in_batch:
-                        current_mask[i, j] = False
+                for i in range(q_block.shape[0]):
+                    for j in range(seq_len_k):
+                        q_index_in_batch = cu_q_block[block_idx] + i - batch_q_start_idx
+                        k_index_in_batch = j - batch_k_start_idx
+                        if q_index_in_batch + offset < k_index_in_batch:
+                            current_mask[i, j] = False
    
             # Finally, add block mask, the k blocks that are not needed for the current q block should be ignored.
             for j in range(num_k_block):
-                if not block_mask[head_idx,block_idx,j]:
+                if not block_mask[head_k_idx,block_idx,j]:
                     start_idx = cu_k_block[j]
                     end_idx = cu_k_block[j+1]
                     current_mask[:, start_idx:end_idx] = False
             
             out = scaled_dot_product_attention(
                query = q_block.unsqueeze(0), # (1, block_seq_len, headdim),
-               key = k[:,head_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
-               value = v[:,head_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
+               key = k[:,head_k_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
+               value = v[:,head_k_idx, :].unsqueeze(0), # (1, seq_len_k, headdim),
                attn_mask = current_mask, # shape (block_seq_len, seq_len_k)
                is_causal = False, # we have incoporated all constraints in the current_mask.
                scale = softmax_scale,
                )
-            output[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_idx, :] = out
+            output[cu_q_block[block_idx]:cu_q_block[block_idx + 1], head_q_idx, :] = out
     
     if torch.isnan(output).any():
         warnings.warn("Warning: NaN detected in output of hbsattn_reference_v2_with_pytorch. It is possible if the block mask makes a q block not attend to any k block.")
@@ -157,17 +171,22 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     
     assert len(cu_q_seqlens) == len(cu_k_seqlens) and cu_q_seqlens.ndim == 1 and cu_k_seqlens.ndim == 1, "cu_q_seqlens and cu_k_seqlens must be 1D tensors of same length, indicating the start and end indices of each q/k sample. Their length equals the total number of samples + 1."
     
-    batch_size = len(cu_q_seqlens) - 1
-    nhead = q.shape[1]
+    batch_size = len(cu_q_seqlens) - 1 # number of samples
+    
+    nhead_q = q.shape[1]
+    nhead_k = k.shape[1]
+    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    shared_ratio = nhead_q // nhead_k
+    
     headdim = q.shape[2]
     seq_len_q = q.shape[0]
     seq_len_k = k.shape[0]
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
 
-    qk = torch.einsum('nhd,shd->nsh', q, k) * softmax_scale # shape (seq_len_q, seq_len_k, nhead)
+    qk = torch.einsum('nhd,shd->nsh', q, k.expand(1,shared_ratio,1)) * softmax_scale # shape (seq_len_q, seq_len_k, nhead_q)
     
     # construct a large overall mask named total_mask
-    # First, construct the in_batch_mask and causl_mask together at the same time (same in the nhead dimension)
+    # First, construct the in_batch_mask and causl_mask together at the same time (same in the nhead_q dimension)
     in_batch_and_causal_mask = torch.zeros((seq_len_q, seq_len_k,), dtype=torch.bool, device=q.device)
     for sample_idx in range(batch_size):
         batch_k_start_idx = cu_k_seqlens[sample_idx]
@@ -181,15 +200,18 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
         
         for i in range(batch_q_start_idx, batch_q_end_idx):
             for j in range(batch_k_start_idx, batch_k_end_idx):
-                if i - batch_q_start_idx + offset >= j - batch_k_start_idx: 
+                if not causal:
+                    in_batch_and_causal_mask[i, j] = True
+                elif i - batch_q_start_idx + offset >= j - batch_k_start_idx: 
                     in_batch_and_causal_mask[i, j] = True
     
     # Second, construct the block_mask
-    expanded_block_mask = torch.zeros((seq_len_q, seq_len_k, nhead), dtype=torch.bool, device=q.device)
-    for i in range(nhead):
+    expanded_block_mask = torch.zeros((seq_len_q, seq_len_k, nhead_q), dtype=torch.bool, device=q.device)
+    for i in range(nhead_q):
+        head_k_idx = i // shared_ratio
         for j in range(num_q_block):
             for k in range(num_k_block):
-                if block_mask[i,j,k]:
+                if block_mask[head_k_idx,j,k]:
                     start_q_index = cu_q_block[j]
                     end_q_index = cu_q_block[j+1]
                     start_k_index = cu_k_block[k]
@@ -205,7 +227,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     
     # now masking and calculate output
     qk = qk.masked_fill(total_mask.logical_not(), float('-inf'))
-    p = F.softmax(qk, dim=1) # shape (seq_len_q, seq_len_k, nhead)
+    p = F.softmax(qk, dim=1) # shape (seq_len_q, seq_len_k, nhead_q)
     
     # if index.numel():
     #     for i in range(index.shape[0]):
@@ -213,7 +235,7 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
     #             if index[i,j]:
     #                 p[i,:,j] = 0
     
-    out = torch.einsum('nsh,shd->nhd', p, v)
+    out = torch.einsum('nsh,shd->nhd', p, v.expand(1,shared_ratio,1))
     
     if torch.isnan(out).any():
         warnings.warn("Warning: NaN detected in output of hbsattn_reference_v3_qkallfirst. It is possible if the block mask makes a q block not attend to any k block.")
