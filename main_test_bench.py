@@ -92,34 +92,34 @@ if __name__ == "__main__":
     else:
         print("All values in 'out' and 'golden_ref_v1' are identical.")
 
-    # benchmarking start here
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v1_base'
-    }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # # benchmarking start here
+    # benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'hbsattn_reference_v1_base'
+    # }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v2_with_pytorch'
-    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'hbsattn_reference_v2_with_pytorch'
+    # }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v3_qkallfirst'
-    }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'hbsattn_reference_v3_qkallfirst'
+    # }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'HBSAttention'
-    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'HBSAttention'
+    # }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
 
     
