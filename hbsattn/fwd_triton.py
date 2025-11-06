@@ -97,7 +97,7 @@ def _fwd_kernel(
             
             # core part: online Softmax
             qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32) ## TODO: in the lask k block, might be a problem because
-            qk += tl.dot(q_block, k_block)
+            qk += tl.dot(q_block, k_block, allow_tf32=False)
             qk *= softmax_scale
             
             if causal:
