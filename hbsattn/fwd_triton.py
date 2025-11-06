@@ -117,7 +117,7 @@ def _fwd_kernel(
             acc = acc * alpha[:, None]
             
             p = p.to(v.type.element_ty)
-            acc += tl.dot(p, v_block, allow_tf32=False)
+            acc += tl.dot(p.to(tl.float32), v_block.to(tl.float32), allow_tf32=False)
 
             m_i = m_ij
 
