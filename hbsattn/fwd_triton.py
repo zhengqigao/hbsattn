@@ -118,7 +118,7 @@ def _fwd_kernel(
             # tl.device_print("v_block", v_block)
             p = p.to(v.type.element_ty)
             acc += tl.dot(p, v_block, allow_tf32=False)
-            tl.device_print("acc", acc)
+            tl.device_print("before acc", acc)
             m_i = m_ij
 
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
@@ -128,7 +128,9 @@ def _fwd_kernel(
     # tl.device_print("l_recip", l_recip)
     # tl.device_print("l_recip", l_recip)
     # acc = acc * l_recip[:,None]
+    tl.device_print("l_i", l_i)
     acc = acc / l_i[:, None]
+    tl.device_print("after acc", acc)
     acc = acc.to(out.dtype.element_ty)
     
     off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
