@@ -21,8 +21,8 @@ def sum_vs_dot_kernel(
     v_block = tl.load(v_ptr + offs_n[None, :] + offs_dim[:, None])  # [BLOCK_N, BLOCK_DIM]
     out_dot_block = tl.dot(p_block, v_block)  # [BLOCK_M, BLOCK_DIM]
     out_sum_block = tl.sum(v_block, 0)  # [BLOCK_DIM]
-    tl.store(out_dot_ptr + offs_m, out_dot_block)
-    tl.store(out_sum_ptr + offs_n, out_sum_block)
+    tl.store(out_dot_ptr + offs_m[:, None] + offs_dim[None, :], out_dot_block)
+    tl.store(out_sum_ptr + offs_m[:, None] + offs_dim[None, :], out_sum_block)
 
 # ---- Host code to test both
 
