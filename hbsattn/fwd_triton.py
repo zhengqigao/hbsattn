@@ -122,12 +122,13 @@ def _fwd_kernel(
             m_i = m_ij
 
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
-    l_recip = 1 / l_i
+    # l_recip = 1 / l_i
     # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
     # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
     # tl.device_print("l_recip", l_recip)
-    tl.device_print("l_recip", l_recip)
-    acc = acc * l_recip[:,None]
+    # tl.device_print("l_recip", l_recip)
+    # acc = acc * l_recip[:,None]
+    acc = acc / l_i[:, None]
     acc = acc.to(out.dtype.element_ty)
     
     off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
