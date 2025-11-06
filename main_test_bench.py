@@ -38,8 +38,8 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     torch.cuda.manual_seed(0)
     
-    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     # v = torch.arange(k_seqlen,device=device, dtype=dtype).view(k_seqlen, 1, 1).repeat(1, nhead_k, headdim)
     # Set print precision for PyTorch tensors to display 7 decimal places
