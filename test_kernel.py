@@ -32,7 +32,7 @@ def sum_vs_dot_kernel(
     p_block = tl.load(p_ptrs)
     v_block = tl.load(v_ptrs)
 
-    out_dot_block = tl.dot(p_block, v_block)
+    out_dot_block = tl.dot(p_block, v_block,allow_tf32=False)
     out_sum_block = tl.sum(v_block, 0)
 
     tl.store(out_dot_ptrs, out_dot_block)
