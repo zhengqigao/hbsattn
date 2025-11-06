@@ -108,6 +108,8 @@ def _fwd_kernel(
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
                         
             p = tl.exp(qk)
+            
+            tl.device_print("p", p)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
             
