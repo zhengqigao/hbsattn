@@ -81,8 +81,11 @@ if __name__ == "__main__":
     # To support multi-dim indexing and show values:
     if max_diff > 0:
         print(f"Max absolute difference is {max_diff.item()} at index {max_idx}.")
-        print("out value at this index:", out[max_idx].item())
-        print("golden_ref_v1 value at this index:", golden_ref_v1[max_idx].item())
+        # There may be multiple indices with the max value, so print all
+        out_values = out[max_idx]
+        golden_values = golden_ref_v1[max_idx]
+        print("out value(s) at this index:", out_values)
+        print("golden_ref_v1 value(s) at this index:", golden_values)
     else:
         print("All values in 'out' and 'golden_ref_v1' are identical.")
 
