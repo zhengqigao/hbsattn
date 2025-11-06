@@ -68,14 +68,7 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     assert torch.all(torch.isfinite(golden_ref_v3))
     assert torch.all(torch.isfinite(out))
     
-    # Calculate errors before assertions for reporting
-    abs_error = torch.abs(golden_ref_v1 - out)
-    rel_error = abs_error / (1e-8 + torch.maximum(torch.abs(golden_ref_v1), torch.abs(out)))
-    max_abs_error = abs_error.max().item()
-    max_rel_error = rel_error.max().item()
-    print(f"Max absolute error between golden_ref_v1 and out: {max_abs_error:.3e}")
-    print(f"Max relative error between golden_ref_v1 and out: {max_rel_error:.3e}")
-    
+
     assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-4, rtol=1e-2)
     assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-4, rtol=1e-2)
     assert torch.allclose(golden_ref_v1, out, atol=1e-4, rtol=1e-2)
