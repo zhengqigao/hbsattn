@@ -53,9 +53,6 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
 
     # INSERT_YOUR_CODE
     # Save q, k, v, and block_mask to local folder for inspection/debugging
-    print(f"q.shape: {q.shape}")
-    print(f"k.shape: {k.shape}")
-    print(f"v.shape: {v.shape}")
     print(f"block_mask.shape: {block_mask.shape}")
     torch.save(q, "q.pt")
     torch.save(k, "k.pt")
