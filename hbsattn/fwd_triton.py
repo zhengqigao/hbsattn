@@ -117,7 +117,7 @@ def _fwd_kernel(
             acc = acc * alpha[:, None]
             
             p = p.to(v.type.element_ty)
-            tl.device_print("p", p)
+            # tl.device_print("p", p)
             acc += tl.dot(p, v_block)
             m_i = m_ij
 
@@ -125,7 +125,7 @@ def _fwd_kernel(
     l_recip = 1 / l_i
     # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
     # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
-    
+    tl.device_print("l_recip", l_recip)
     acc = acc * l_recip[:,None]
     acc = acc.to(out.dtype.element_ty)
     
