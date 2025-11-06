@@ -91,7 +91,7 @@ def _fwd_kernel(
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
-            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n, other=0.0)
+            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n, other=float('-inf'))
             v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n, other=0.0)
             
             # core part: online Softmax
@@ -99,15 +99,13 @@ def _fwd_kernel(
             qk += tl.dot(q_block, k_block, allow_tf32=False) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
             qk *= softmax_scale
             
+
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
             qk -= m_ij[:, None]
             
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
-            
-            if start_n + BLOCK_N > end_n:
-                qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
-            
+                        
             p = tl.exp(qk)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
@@ -115,7 +113,7 @@ def _fwd_kernel(
             # Original flashattention here stores and immediately loads, but it seems not necessary in my testing.
             # tl.store(tmp_ptr, alpha, mask = off_m < end_m)
             # alpha = tl.load(tmp_ptr, mask = off_m < end_m)
-            #
+            # 
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
             # tl.device_print("p", p)
