@@ -36,9 +36,9 @@ if __name__ == "__main__":
     k_block_size = 16
 
     
-    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
-    v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    v =  torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     # v = torch.arange(k_seqlen,device=device, dtype=dtype).view(k_seqlen, 1, 1).repeat(1, nhead_k, headdim)
     # Set print precision for PyTorch tensors to display 7 decimal places
     # torch.set_printoptions(precision=7, sci_mode=False)
