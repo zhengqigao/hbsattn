@@ -99,12 +99,18 @@ def _fwd_kernel(
             qk += tl.dot(q_block, k_block, allow_tf32=False) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
             qk *= softmax_scale
 
-            if causal:
-                qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
+
             tl.device_print("qk", qk)
             
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
             qk -= m_ij[:, None]
+            
+            if causal:
+                qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
+            
+            if start_n + BLOCK_N < end_n:
+                qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
+            
             p = tl.exp(qk)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
