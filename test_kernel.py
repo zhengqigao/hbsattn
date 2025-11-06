@@ -8,12 +8,12 @@ def sum_vs_dot_kernel(
     v_ptr,
     out_dot_ptr,
     out_sum_ptr,
-    stride_p_m,      # 新增：p的行stride
-    stride_p_n,      # 新增：p的列stride
-    stride_v_n,      # 新增：v的行stride
-    stride_v_dim,    # 新增：v的列stride
-    stride_out_m,    # 新增：out的行stride
-    stride_out_dim,  # 新增：out的列stride
+    stride_p_m,      
+    stride_p_n,    
+    stride_v_n,    
+    stride_v_dim,    
+    stride_out_m,    
+    stride_out_dim,  
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_DIM: tl.constexpr,
@@ -22,21 +22,19 @@ def sum_vs_dot_kernel(
     offs_n = tl.arange(0, BLOCK_N)
     offs_dim = tl.arange(0, BLOCK_DIM)
     
-    # 正确的指针计算：使用stride
+
     p_ptrs = p_ptr + offs_m[:, None] * stride_p_m + offs_n[None, :] * stride_p_n
     v_ptrs = v_ptr + offs_n[:, None] * stride_v_n + offs_dim[None, :] * stride_v_dim
     out_dot_ptrs = out_dot_ptr + offs_m[:, None] * stride_out_m + offs_dim[None, :] * stride_out_dim
     out_sum_ptrs = out_sum_ptr + offs_dim
     
-    # Load数据
+
     p_block = tl.load(p_ptrs)
     v_block = tl.load(v_ptrs)
-    
-    # 计算
+
     out_dot_block = tl.dot(p_block, v_block)
     out_sum_block = tl.sum(v_block, 0)
-    
-    # Store结果
+
     tl.store(out_dot_ptrs, out_dot_block)
     tl.store(out_sum_ptrs, out_sum_block)
 
@@ -57,23 +55,22 @@ sum_vs_dot_kernel[grid](
     v,
     out_dot,
     out_sum,
-    p.stride(0), p.stride(1),      # p的stride
-    v.stride(0), v.stride(1),      # v的stride
-    out_dot.stride(0), out_dot.stride(1),  # out的stride
+    p.stride(0), p.stride(1),     
+    v.stride(0), v.stride(1),      
+    out_dot.stride(0), out_dot.stride(1),  
     BLOCK_M, BLOCK_N, BLOCK_DIM
 )
 
 
 dot_result = out_dot.cpu()
-sum_result = out_sum.cpu()
-
 expected_dot = torch.matmul(p, v).cpu()
-expected_sum = v.sum(dim=0).cpu()
-
 print("Triton dot result (first row):", dot_result[0])
 print("Expected dot result (first row):", expected_dot[0])
 print("Match dot?", torch.allclose(dot_result, expected_dot, atol=1e-5))
 
+
+expected_sum = v.sum(dim=0).cpu()
+sum_result = out_sum.cpu()
 print("\nTriton sum result:", sum_result)
 print("Expected sum result:", expected_sum)
 print("Match sum?", torch.allclose(sum_result, expected_sum, atol=1e-5))
