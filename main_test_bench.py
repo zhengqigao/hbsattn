@@ -26,13 +26,13 @@ if __name__ == "__main__":
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
-    nhead_k = 1
-    nhead_q = 1
+    nhead_k = 2
+    nhead_q = 2
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
     headdim = 16
-    q_block_size = 32
+    q_block_size = 16
     k_block_size = 16
 
     
