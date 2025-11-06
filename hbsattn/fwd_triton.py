@@ -114,7 +114,7 @@ def _fwd_kernel(
             
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
-            
+            tl.device_print("p", p)
             p = p.to(v.type.element_ty)
             acc += tl.dot(p, v_block, allow_tf32=False)
 
