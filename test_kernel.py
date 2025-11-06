@@ -14,7 +14,7 @@ def sum_vs_dot_kernel(
     # Program loads the whole [BLOCK_M, BLOCK_N] block from v into v_block
     offs_m = tl.arange(0, BLOCK_M)
     offs_n = tl.arange(0, BLOCK_N)
-    v_block = tl.load(v_ptr + offs_m[:, None] * BLOCK_N + offs_n[None, :])  # [BLOCK_M, BLOCK_N]
+    v_block = tl.load(v_ptr + offs_m[:, None] + offs_n[None, :])  # [BLOCK_M, BLOCK_N]
 
     # Compute dot between a block of ones and v along the ROW dimension
     ones_block = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32) + 1.0
