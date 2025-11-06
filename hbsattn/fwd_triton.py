@@ -103,12 +103,9 @@ def _fwd_kernel(
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
             
-            
-                        
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
             qk -= m_ij[:, None]
             p = tl.exp(qk)
-            tl.device_print("p", p)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
             
@@ -119,15 +116,9 @@ def _fwd_kernel(
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
             
-            
-            # p = p.to(v.type.element_ty)
-            # tl.device_print("p", p)
-            # Triton device_print cannot print 'dtype' objects, only tensor values.
-            # Instead, print the converted tensors (for debugging, use the value, not the type)
-            tl.device_print("v_block", v_block)
+            p = p.to(v.type.element_ty)
             acc += tl.dot(p, v_block, allow_tf32=False)
-            # acc += tl.sum(v_block,0)
-            tl.device_print("sum ofacc", acc)
+
             m_i = m_ij
 
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
