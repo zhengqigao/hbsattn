@@ -14,7 +14,7 @@ if __name__ == "__main__":
     device = torch.cuda.current_device()
 
     causal = False
-    softmax_scale = 1.0
+    softmax_scale = None
     
     dtype = torch.float32
     
