@@ -122,7 +122,7 @@ def _fwd_kernel(
             # Instead, print the converted tensors (for debugging, use the value, not the type)
             tl.device_print("v_block", v_block)
             # acc += tl.dot(p, v_block)
-            acc += tl.reduce(v_block,1)
+            acc += tl.sum(v_block,1)
             tl.device_print("sum ofacc", acc)
             m_i = m_ij
 
