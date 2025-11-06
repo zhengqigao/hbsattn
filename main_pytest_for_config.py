@@ -51,6 +51,13 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
                 break
         block_mask[:, i, first_k_block_idx_in_the_same_batch] = True
 
+    # INSERT_YOUR_CODE
+    # Save q, k, v, and block_mask to local folder for inspection/debugging
+    torch.save(q, "q.pt")
+    torch.save(k, "k.pt")
+    torch.save(v, "v.pt")
+    torch.save(block_mask, "block_mask.pt")
+
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
 
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
