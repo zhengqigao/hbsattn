@@ -35,6 +35,9 @@ if __name__ == "__main__":
     q_block_size = 16
     k_block_size = 16
 
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
+    
     q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
