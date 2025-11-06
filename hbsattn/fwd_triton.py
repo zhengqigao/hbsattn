@@ -126,6 +126,7 @@ def _fwd_kernel(
             m_i = m_ij
 
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
+    l_i = tl.where(l_i == 0, 1, l_i)
     l_recip = 1 / l_i
     # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
     # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
