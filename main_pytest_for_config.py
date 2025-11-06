@@ -84,7 +84,13 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
     print("out", out, torch.isnan(out).any())
-    
+    # INSERT_YOUR_CODE
+    # Print out all s indices where any head or dim (h, d) is nan in out
+    if torch.isnan(out).any():
+        nan_mask = torch.isnan(out)  # shape: (s, h, d)
+        nan_s_indices = torch.unique(torch.nonzero(nan_mask, as_tuple=False)[:, 0])
+        print("Indices s where any (h, d) is nan in out:", nan_s_indices.tolist())
+        
     # Calculate errors before assertions for reporting
     abs_error = torch.abs(golden_ref_v1 - out)
     rel_error = abs_error / (1e-4 + torch.maximum(torch.abs(golden_ref_v1), torch.abs(out)))
