@@ -115,7 +115,7 @@ def _fwd_kernel(
             # Original flashattention here stores and immediately loads, but it seems not necessary in my testing.
             # tl.store(tmp_ptr, alpha, mask = off_m < end_m)
             # alpha = tl.load(tmp_ptr, mask = off_m < end_m)
-            
+            #
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
             # tl.device_print("p", p)
@@ -125,8 +125,7 @@ def _fwd_kernel(
             # tl.device_print("before acc", acc)
             m_i = m_ij
 
-    # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
-    l_i = tl.where(l_i == 0, 1, l_i)
+    l_i = tl.where(l_i == 0, 1, l_i) # might be a working trick for the case when l_i is not updated at all. 
     l_recip = 1 / l_i
     # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
     # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
