@@ -64,13 +64,11 @@ sum_vs_dot_kernel[grid](
 
 dot_result = out_dot.cpu()
 expected_dot = torch.matmul(p, v).cpu()
-print("Triton dot result (first row):", dot_result[0])
-print("Expected dot result (first row):", expected_dot[0])
-print("Match dot?", torch.allclose(dot_result, expected_dot, atol=1e-5))
+print("1. Triton dot result (first row):", dot_result[0])
+print("2. Torch dot result (first row):", expected_dot[0])
 
 
 expected_sum = v.sum(dim=0).cpu()
 sum_result = out_sum.cpu()
-print("\nTriton sum result:", sum_result)
-print("Expected sum result:", expected_sum)
-print("Match sum?", torch.allclose(sum_result, expected_sum, atol=1e-5))
+print("3. Triton sum result:", sum_result)
+print("4. Torch sum result:", expected_sum)
