@@ -33,7 +33,7 @@ if __name__ == "__main__":
     
     headdim = 16
     q_block_size = 16
-    k_block_size = 16
+    k_block_size = 8
 
     
     q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
