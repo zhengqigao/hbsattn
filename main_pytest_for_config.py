@@ -22,8 +22,8 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     device = torch.cuda.current_device()
 
     if k_q_same_seqlen:
-        cu_k_seqlens = torch.tensor([0, 32, 61], dtype=torch.int32, device=device)
-        cu_q_seqlens = torch.tensor([0, 32, 61], dtype=torch.int32, device=device)
+        cu_k_seqlens = torch.tensor([0, 31], dtype=torch.int32, device=device)
+        cu_q_seqlens = torch.tensor([0, 31], dtype=torch.int32, device=device)
     else:
         cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
         cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
