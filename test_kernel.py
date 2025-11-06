@@ -32,14 +32,14 @@ BLOCK_DIM = 16
 
 # Prepare a random block to operate on. Shape = [BLOCK_M, BLOCK_N]
 v = torch.randn((BLOCK_N, BLOCK_DIM), device='cuda', dtype=torch.float32)
-p = torch.randn((BLOCK_M, BLOCK_N), device='cuda', dtype=torch.float32)
+p = torch.ones((BLOCK_M, BLOCK_N), device='cuda', dtype=torch.float32)
 
 # Allocate outputs
 out_dot = torch.empty((BLOCK_M, BLOCK_DIM), device='cuda', dtype=torch.float32)
 out_sum = torch.empty((BLOCK_M, BLOCK_DIM), device='cuda', dtype=torch.float32)
-
+gird = (1)
 # Launch kernel (just one block)
-sum_vs_dot_kernel[1](
+sum_vs_dot_kernel[grid](
     p,               # p_ptr
     v,               # v_ptr
     out_dot,         # out_dot_ptr
