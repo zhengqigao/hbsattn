@@ -18,11 +18,11 @@ if __name__ == "__main__":
     
     dtype = torch.float32
     
-    cu_k_seqlens = torch.tensor([0,32, 64, 96, 128, 160], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
+    cu_k_seqlens = torch.tensor([0,16], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    cu_q_seqlens = torch.tensor([0, 16], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 first_k_block_idx_in_the_same_batch = j
                 break
         block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
-
+    print(f"block_mask: {block_mask}")
     # block_mask = block_mask.fill_(1).contiguous()
     
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
