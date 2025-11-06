@@ -97,7 +97,7 @@ def _fwd_kernel(
             
             # core part: online Softmax
             qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-            qk += tl.dot(q_block.to(tl.float32), k_block.to(tl.float32), allow_tf32=False) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
+            qk += tl.dot(q_block, k_block, allow_tf32=False) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
             qk *= softmax_scale
             
             if causal:
@@ -117,7 +117,7 @@ def _fwd_kernel(
             acc = acc * alpha[:, None]
             
             p = p.to(v.type.element_ty)
-            acc += tl.dot(p.to(tl.float32), v_block.to(tl.float32), allow_tf32=False)
+            acc += tl.dot(p, v_block, allow_tf32=False)
 
             m_i = m_ij
 
