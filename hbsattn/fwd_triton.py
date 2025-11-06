@@ -96,7 +96,7 @@ def _fwd_kernel(
             v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n, other=0.0)
             
             # core part: online Softmax
-            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32) ## TODO: in the lask k block, might be a problem because
+            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
             qk += tl.dot(q_block, k_block, allow_tf32=False) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
             qk *= softmax_scale
             
@@ -109,7 +109,7 @@ def _fwd_kernel(
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
             
-            # # # BUG: have to store and immediately load 
+            # Original flashattention here stores and immediately loads, but it seems not necessary in my testing.
             # tl.store(tmp_ptr, alpha, mask = off_m < end_m)
             # alpha = tl.load(tmp_ptr, mask = off_m < end_m)
             
@@ -126,9 +126,7 @@ def _fwd_kernel(
     # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
     # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
     # tl.device_print("l_recip", l_recip)
-    # tl.device_print("before acc", acc)
     acc = acc * l_recip[:,None]
-    # tl.device_print("after acc", acc)
     acc = acc.to(out.dtype.element_ty)
     
     off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
