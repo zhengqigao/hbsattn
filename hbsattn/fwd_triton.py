@@ -128,7 +128,7 @@ def _fwd_kernel(
             tl.device_print("v_block.type.element_ty", v_block.type.element_ty)
             tl.device_print("p.type.element_ty", p.type.element_ty)
             tl.device_print("acc.type.element_ty", acc.type.element_ty)
-            acc += tl.dot(p, v_block)
+            acc = tl.dot(p, v_block, acc)
             # acc += tl.sum(v_block,0)
             tl.device_print("sum ofacc", acc)
             m_i = m_ij
