@@ -18,11 +18,11 @@ if __name__ == "__main__":
     
     dtype = torch.float32
     
-    cu_k_seqlens = torch.tensor([0,16], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
+    cu_k_seqlens = torch.tensor([0,32, 64, 96, 128, 160], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0, 16], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     # v = torch.arange(k_seqlen,device=device, dtype=dtype).view(k_seqlen, 1, 1).repeat(1, nhead_k, headdim)
     # Set print precision for PyTorch tensors to display 7 decimal places
-    torch.set_printoptions(precision=7, sci_mode=False)
-    print("v[:,0,0]", v[:,0,0])
+    # torch.set_printoptions(precision=7, sci_mode=False)
+    # print("v[:,0,0]", v[:,0,0])
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
     num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
 
@@ -59,7 +59,6 @@ if __name__ == "__main__":
                 first_k_block_idx_in_the_same_batch = j
                 break
         block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
-    print(f"block_mask: {block_mask}")
     # block_mask = block_mask.fill_(1).contiguous()
     
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
@@ -73,7 +72,7 @@ if __name__ == "__main__":
 
     out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    print("sum of v", torch.sum(v,dim=0))
+
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
     print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
