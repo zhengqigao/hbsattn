@@ -3,7 +3,7 @@ from functools import lru_cache
 
 # calculate_blocks is adpated from https://github.com/MoonshotAI/MoBA/blob/master/moba/moba_efficient.py
 
-@lru_cache(maxsize=16)
+
 def calculate_blocks(cu_seqlen: torch.Tensor, block_size: int) -> tuple[int, torch.Tensor, torch.Tensor]:
     """calculate cu_block and block_to_batch"""
 
