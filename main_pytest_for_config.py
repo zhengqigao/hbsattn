@@ -33,8 +33,8 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     
     headdim = 16
 
-    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
