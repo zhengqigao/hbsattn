@@ -35,6 +35,18 @@ def _check_correctness(golden: torch.Tensor, result: torch.Tensor, name: str) ->
     else:
         print("[Error Plot] Could not locate max abs error index.")
 
+    # Print info for max relative error
+    max_rel_val = error_info['max_rel']
+    max_rel_idx = torch.nonzero(rel_error == max_rel_val)
+    if max_rel_idx.numel() > 0:
+        max_rel_idx = tuple(max_rel_idx[0].tolist())
+        print(f"[Error Plot] Max rel error ({max_rel_val:.3e}) at index: {max_rel_idx}")
+        print(f"    golden[{max_rel_idx}] = {golden[max_rel_idx].item()}")
+        print(f"    result[{max_rel_idx}] = {result[max_rel_idx].item()}")
+        print(f"    abs_error[{max_rel_idx}] = {abs_error[max_rel_idx].item()}")
+    else:
+        print("[Error Plot] Could not locate max rel error index.")
+
     print(f"Max Rel Error: {error_info['max_rel']:.3e}")
     print(f"Mean Rel Error: {error_info['mean_rel']:.3e}")
     print(f"Max Abs Error: {error_info['max_abs']:.3e}")
