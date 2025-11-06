@@ -125,6 +125,7 @@ def _fwd_kernel(
             # Triton device_print cannot print 'dtype' objects, only tensor values.
             # Instead, print the converted tensors (for debugging, use the value, not the type)
             tl.device_print("v_block", v_block)
+            tl.device_print("v_block.dtype", v_block.dtype)
             acc += tl.dot(p, v_block)
             # acc += tl.sum(v_block,0)
             tl.device_print("sum ofacc", acc)
