@@ -5,46 +5,46 @@ import torch
 # Toy example: Compare tl.dot(tl.ones, v) vs tl.sum(v, 0) for a single row block.
 @triton.jit
 def sum_vs_dot_kernel(
-    v_ptr,  # pointer to input [BLOCK_M, BLOCK_N]
-    out_dot_ptr,  # pointer to output for dot version [BLOCK_N]
-    out_sum_ptr,  # pointer to output for sum version [BLOCK_N]
+    p_ptr, # pointer to weight [BLOCK_M, BLOCK_N]
+    v_ptr,  # pointer to input [BLOCK_N, BLOCK_DIM]
+    out_dot_ptr,  # pointer to output for dot version [BLOCK_M, BLOCK_DIM]
+    out_sum_ptr,  # pointer to output for sum version [BLOCK_N, BLOCK_DIM]
     BLOCK_M: tl.constexpr,  # block row size
     BLOCK_N: tl.constexpr,  # block col size
+    BLOCK_DIM: tl.constexpr,  # block dim size
 ):
-    # Program loads the whole [BLOCK_M, BLOCK_N] block from v into v_block
+    
     offs_m = tl.arange(0, BLOCK_M)
     offs_n = tl.arange(0, BLOCK_N)
-    v_block = tl.load(v_ptr + offs_m[:, None] + offs_n[None, :])  # [BLOCK_M, BLOCK_N]
-
-    # Compute dot between a block of ones and v along the ROW dimension
-    ones_block = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32) + 1.0
-    dot_result = tl.dot(ones_block, v_block)  # [BLOCK_N]
-
-    # Compute sum along 0 (rows)
-    sum_result = tl.sum(v_block, 0)  # [BLOCK_N]
-
-    # Store outputs
-    tl.store(out_dot_ptr + offs_n, dot_result)
-    tl.store(out_sum_ptr + offs_n, sum_result)
+    offs_dim = tl.arange(0, BLOCK_DIM)
+    p_block = tl.load(p_ptr + offs_m[:, None] + offs_dim[None, :])  # [BLOCK_M, BLOCK_DIM]
+    v_block = tl.load(v_ptr + offs_n[None, :] + offs_dim[:, None])  # [BLOCK_N, BLOCK_DIM]
+    out_dot_block = tl.dot(p_block, v_block)  # [BLOCK_M, BLOCK_DIM]
+    out_sum_block = tl.sum(v_block, 0)  # [BLOCK_DIM]
+    tl.store(out_dot_ptr + offs_m, out_dot_block)
+    tl.store(out_sum_ptr + offs_n, out_sum_block)
 
 # ---- Host code to test both
 
 BLOCK_M = 128
 BLOCK_N = 64
+BLOCK_DIM = 16
 
 # Prepare a random block to operate on. Shape = [BLOCK_M, BLOCK_N]
-v = torch.randn((BLOCK_M, BLOCK_N), device='cuda', dtype=torch.float32)
+v = torch.randn((BLOCK_N, BLOCK_DIM), device='cuda', dtype=torch.float32)
+p = torch.randn((BLOCK_M, BLOCK_N), device='cuda', dtype=torch.float32)
 
 # Allocate outputs
-out_dot = torch.empty((BLOCK_N,), device='cuda', dtype=torch.float32)
-out_sum = torch.empty((BLOCK_N,), device='cuda', dtype=torch.float32)
+out_dot = torch.empty((BLOCK_M, BLOCK_DIM), device='cuda', dtype=torch.float32)
+out_sum = torch.empty((BLOCK_M, BLOCK_DIM), device='cuda', dtype=torch.float32)
 
 # Launch kernel (just one block)
 sum_vs_dot_kernel[1](
+    p,               # p_ptr
     v,               # v_ptr
     out_dot,         # out_dot_ptr
     out_sum,         # out_sum_ptr
-    BLOCK_M, BLOCK_N
+    BLOCK_M, BLOCK_N, BLOCK_DIM
 )
 
 # Compare results on host
