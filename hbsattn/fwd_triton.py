@@ -74,8 +74,8 @@ def _fwd_kernel(
     batch_q_end_idx = tl.load(cu_q_seqlens + batch_idx + 1)
     batch_k_start_idx = tl.load(cu_k_seqlens + batch_idx)
     batch_k_end_idx = tl.load(cu_k_seqlens + batch_idx + 1)
-    offset = batch_k_end_idx - batch_q_end_idx
-    tl.device_print("offset", offset)
+    offset = batch_k_end_idx - batch_k_start_idx - (batch_q_end_idx - batch_q_start_idx)
+
     # k block loop, start from the same batch as the q block, and end at the last k block in the same batch.
     k_block_start = tl.load(cu_num_k_block + batch_idx)
     k_block_end = tl.load(cu_num_k_block + batch_idx + 1)
