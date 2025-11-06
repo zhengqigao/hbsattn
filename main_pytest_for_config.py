@@ -53,11 +53,6 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
 
     # INSERT_YOUR_CODE
     # Save q, k, v, and block_mask to local folder for inspection/debugging
-    print(f"block_mask.shape: {block_mask.shape}")
-    torch.save(q, "q.pt")
-    torch.save(k, "k.pt")
-    torch.save(v, "v.pt")
-    torch.save(block_mask, "block_mask.pt")
 
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
 
