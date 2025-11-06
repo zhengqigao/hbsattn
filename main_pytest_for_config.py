@@ -15,9 +15,9 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)])  # nhead_q % nhead_k == 0
 @pytest.mark.parametrize("softmax_scale", [None, 0.333])
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32])
-@pytest.mark.parametrize("q_block_size", [16, 4])
-@pytest.mark.parametrize("k_block_size", [16, 8])
-@pytest.mark.parametrize("k_q_same_seqlen", [True, ])
+@pytest.mark.parametrize("q_block_size", [16, 32])
+@pytest.mark.parametrize("k_block_size", [16, 32])
+@pytest.mark.parametrize("k_q_same_seqlen", [True, False])
 def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen):
     device = torch.cuda.current_device()
 
@@ -67,6 +67,15 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     assert torch.all(torch.isfinite(golden_ref_v2))
     assert torch.all(torch.isfinite(golden_ref_v3))
     assert torch.all(torch.isfinite(out))
+    
+    # Calculate errors before assertions for reporting
+    abs_error = torch.abs(golden_ref_v1 - out)
+    rel_error = abs_error / (1e-8 + torch.maximum(torch.abs(golden_ref_v1), torch.abs(out)))
+    max_abs_error = abs_error.max().item()
+    max_rel_error = rel_error.max().item()
+    print(f"Max absolute error between golden_ref_v1 and out: {max_abs_error:.3e}")
+    print(f"Max relative error between golden_ref_v1 and out: {max_rel_error:.3e}")
+    
     assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-4, rtol=1e-2)
     assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-4, rtol=1e-2)
     assert torch.allclose(golden_ref_v1, out, atol=1e-4, rtol=1e-2)
