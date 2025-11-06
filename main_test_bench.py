@@ -18,16 +18,16 @@ if __name__ == "__main__":
     
     dtype = torch.float32
     
-    cu_k_seqlens = torch.tensor([0,  32, 61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
+    cu_k_seqlens = torch.tensor([0,  18], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    cu_q_seqlens = torch.tensor([0, 32,], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
-    nhead_k = 2
-    nhead_q = 4
+    nhead_k = 1
+    nhead_q = 1
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     k_block_size = 16
 
     
-    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     # v = torch.arange(k_seqlen,device=device, dtype=dtype).view(k_seqlen, 1, 1).repeat(1, nhead_k, headdim)
     # Set print precision for PyTorch tensors to display 7 decimal places
