@@ -8,7 +8,7 @@ def sum_vs_dot_kernel(
     p_ptr, # pointer to weight [BLOCK_M, BLOCK_N]
     v_ptr,  # pointer to input [BLOCK_N, BLOCK_DIM]
     out_dot_ptr,  # pointer to output for dot version [BLOCK_M, BLOCK_DIM]
-    out_sum_ptr,  # pointer to output for sum version [BLOCK_N, BLOCK_DIM]
+    out_sum_ptr,  # pointer to output for sum version [BLOCK_DIM]
     BLOCK_M: tl.constexpr,  # block row size
     BLOCK_N: tl.constexpr,  # block col size
     BLOCK_DIM: tl.constexpr,  # block dim size
@@ -17,12 +17,12 @@ def sum_vs_dot_kernel(
     offs_m = tl.arange(0, BLOCK_M)
     offs_n = tl.arange(0, BLOCK_N)
     offs_dim = tl.arange(0, BLOCK_DIM)
-    p_block = tl.load(p_ptr + offs_m[:, None] + offs_dim[None, :])  # [BLOCK_M, BLOCK_DIM]
-    v_block = tl.load(v_ptr + offs_n[None, :] + offs_dim[:, None])  # [BLOCK_N, BLOCK_DIM]
+    p_block = tl.load(p_ptr + offs_m[:, None] + offs_n[None, :])  # [BLOCK_M, BLOCK_N]
+    v_block = tl.load(v_ptr + offs_n[:,None] + offs_dim[None, :])  # [BLOCK_N, BLOCK_DIM]
     out_dot_block = tl.dot(p_block, v_block)  # [BLOCK_M, BLOCK_DIM]
     out_sum_block = tl.sum(v_block, 0)  # [BLOCK_DIM]
     tl.store(out_dot_ptr + offs_m[:, None] + offs_dim[None, :], out_dot_block)
-    tl.store(out_sum_ptr + offs_m[:, None] + offs_dim[None, :], out_sum_block)
+    tl.store(out_sum_ptr + offs_dim, out_sum_block)
 
 # ---- Host code to test both
 
