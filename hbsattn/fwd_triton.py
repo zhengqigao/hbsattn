@@ -118,7 +118,10 @@ def _fwd_kernel(
             
             p = p.to(v.type.element_ty)
             # tl.device_print("p", p)
+            tl.device_print("p type", p.type.element_ty)
+            tl.device_print("v_block type", v_block.type.element_ty)
             acc += tl.dot(p, v_block)
+            tl.device_print("sum ofacc", acc)
             m_i = m_ij
 
     # might need to slightly change the code according to the source code given by Flashattention for improved accuracy.
