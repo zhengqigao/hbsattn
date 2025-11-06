@@ -26,8 +26,8 @@ def sum_vs_dot_kernel(
 
 # ---- Host code to test both
 
-BLOCK_M = 128
-BLOCK_N = 64
+BLOCK_M = 64
+BLOCK_N = 32
 BLOCK_DIM = 16
 
 # Prepare a random block to operate on. Shape = [BLOCK_M, BLOCK_N]
