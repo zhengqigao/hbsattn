@@ -50,12 +50,6 @@ sum_vs_dot_kernel[grid](
 # Compare results on host
 dot_result = out_dot.cpu().numpy()
 sum_result = out_sum.cpu().numpy()
-diff = (dot_result - sum_result)
-print("Max abs diff:", abs(diff).max())
-print("Dot result:", dot_result[:8])
-print("Sum result:", sum_result[:8])
-print("All close? ", torch.allclose(out_dot, out_sum))
 
-# For manual inspection, print something if not allclose
-if not torch.allclose(out_dot, out_sum):
-    print("Diff:", diff[:8])
+print("dot_result", dot_result)
+print("sum_result", sum_result)
