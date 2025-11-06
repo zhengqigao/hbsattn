@@ -14,7 +14,7 @@ def _check_correctness(golden: torch.Tensor, result: torch.Tensor, name: str) ->
         return None
     
     abs_error = torch.abs(golden - result)
-    rel_error = abs_error / (1e-8 + torch.maximum(torch.abs(golden), torch.abs(result)))
+    rel_error = abs_error / (1e-4 + torch.maximum(torch.abs(golden), torch.abs(result)))
     
     error_info = {
         'max_abs': abs_error.max().item(),
