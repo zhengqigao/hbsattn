@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    print("mean of v", torch.mean(v,dim=0))
+    print("sum of v", torch.sum(v,dim=0))
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
     print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
