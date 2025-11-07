@@ -44,16 +44,16 @@ if __name__ == "__main__":
     # torch.set_printoptions(precision=7, sci_mode=False)
     # print("v[:,0,0]", v[:,0,0])
     
-    # INSERT_YOUR_CODE
-    # Load q, k, v, and block_mask that were saved as "q.pt", "k.pt", "v.pt", "block_mask.pt"
-    # Make sure they're loaded to the correct device and dtype
-    # 修复TypeError: 'int' object is not callable: map_location 参数应该传字符串而不是 device id/int
-    # 推荐直接用 map_location=f"cuda:{device}" 如果 device 是 int，否则可直接用 torch.device
-    device_str = f"cuda:{device}" if isinstance(device, int) else device
-    q = torch.load("q.pt", map_location=device_str).to(dtype)
-    k = torch.load("k.pt", map_location=device_str).to(dtype)
-    v = torch.load("v.pt", map_location=device_str).to(dtype)
-    block_mask = torch.load("block_mask.pt", map_location=device_str)
+    # # INSERT_YOUR_CODE
+    # # Load q, k, v, and block_mask that were saved as "q.pt", "k.pt", "v.pt", "block_mask.pt"
+    # # Make sure they're loaded to the correct device and dtype
+    # # 修复TypeError: 'int' object is not callable: map_location 参数应该传字符串而不是 device id/int
+    # # 推荐直接用 map_location=f"cuda:{device}" 如果 device 是 int，否则可直接用 torch.device
+    # device_str = f"cuda:{device}" if isinstance(device, int) else device
+    # q = torch.load("q.pt", map_location=device_str).to(dtype)
+    # k = torch.load("k.pt", map_location=device_str).to(dtype)
+    # v = torch.load("v.pt", map_location=device_str).to(dtype)
+    # block_mask = torch.load("block_mask.pt", map_location=device_str)
     
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
     num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
