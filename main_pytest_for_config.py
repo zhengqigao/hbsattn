@@ -18,24 +18,25 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("q_block_size", [16, 32])
 @pytest.mark.parametrize("k_block_size", [16, 32])
 @pytest.mark.parametrize("k_q_same_seqlen", [True, False])
-def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen):
+@pytest.mark.parametrize("mag", [0.1,1.0,10])
+def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen, mag):
     device = torch.cuda.current_device()
 
     if k_q_same_seqlen:
-        cu_k_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
+        cu_k_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) 
         cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
     else:
-        cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device)
-        cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
+        cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) 
+        cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) 
     
     k_seqlen = cu_k_seqlens[-1].item()
     q_seqlen = cu_q_seqlens[-1].item()
     
     headdim = 16
 
-    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
-    v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype) * mag
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) * mag
+    v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) * mag
 
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
     num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
