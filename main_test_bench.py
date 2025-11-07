@@ -60,18 +60,18 @@ if __name__ == "__main__":
 
 
     # Important: note if block_mask is not set properly, then it is possible for a q block not to attend to any k block, and cause the output to be NaN.
-    # block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
-    # for i in range(num_q_block):
-    #     batch_idx = q_block_to_batch[i]
-    #     first_k_block_idx_in_the_same_batch = None
-    #     for j in range(len(k_block_to_batch)):
-    #         if k_block_to_batch[j] == batch_idx:
-    #             first_k_block_idx_in_the_same_batch = j
-    #             break
-    #     block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
-    # # block_mask = block_mask.fill_(1).contiguous()
-    # print("block_mask", block_mask)
-    # assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
+    block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
+    for i in range(num_q_block):
+        batch_idx = q_block_to_batch[i]
+        first_k_block_idx_in_the_same_batch = None
+        for j in range(len(k_block_to_batch)):
+            if k_block_to_batch[j] == batch_idx:
+                first_k_block_idx_in_the_same_batch = j
+                break
+        block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
+    # block_mask = block_mask.fill_(1).contiguous()
+    print("block_mask", block_mask)
+    assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
     
     # run once to get a golden reference
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
