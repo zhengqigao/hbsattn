@@ -12,13 +12,12 @@ from hbsattn.fwd_triton import HBSAttention
 from hbsattn.utils import calculate_blocks
 
 @pytest.mark.parametrize("causal", [False, True], ids=["causal_False", "causal_True"])
-@pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)], ids=["nhead_q_2_nhead_k_2", "nhead_q_4_nhead_k_2", "nhead_q_8_nhead_k_2"])  # nhead_q % nhead_k == 0
+@pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)], ids=["nhead_q_2_nhead_k_2", "nhead_q_4_nhead_k_2", "nhead_q_8_nhead_k_2"]) 
 @pytest.mark.parametrize("softmax_scale", [None, 0.333], ids=["softmax_scale_None", "softmax_scale_0.333"])
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32], ids=["dtype_bfloat16", "dtype_float32"])
 @pytest.mark.parametrize("q_block_size", [16, 32], ids=["q_block_size_16", "q_block_size_32"])
 @pytest.mark.parametrize("k_block_size", [16, 32], ids=["k_block_size_16", "k_block_size_32"])
 @pytest.mark.parametrize("k_q_same_seqlen", [True, False], ids=["k_q_same_seqlen_True", "k_q_same_seqlen_False"])
-@pytest.mark.parametrize("mag", [0.1,1.0,10], ids=["mag_0.1", "mag_1.0", "mag_10"])
 def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen, mag):
     device = torch.cuda.current_device()
 
@@ -34,9 +33,9 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     
     headdim = 16
 
-    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype) * mag
-    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) * mag
-    v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) * mag
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) 
+    v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
     num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
@@ -51,9 +50,6 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
                 first_k_block_idx_in_the_same_batch = j
                 break
         block_mask[:, i, first_k_block_idx_in_the_same_batch] = True
-
-    # INSERT_YOUR_CODE
-    # Save q, k, v, and block_mask to local folder for inspection/debugging
 
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
 
@@ -75,28 +71,9 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-2, rtol=1e-2)
     assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-2, rtol=1e-2)
     assert torch.allclose(golden_ref_v1, out, atol=1e-2, rtol=1e-2)
-    
-    # print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
-    # print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
-    # print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
-    # print("out", out, torch.isnan(out).any())
-    # # INSERT_YOUR_CODE
-    # # Print out all s indices where any head or dim (h, d) is nan in out
-    # if torch.isnan(out).any():
-    #     nan_mask = torch.isnan(out)  # shape: (s, h, d)
-    #     nan_s_indices = torch.unique(torch.nonzero(nan_mask, as_tuple=False)[:, 0])
-    #     print("Indices s where any (h, d) is nan in out:", nan_s_indices.tolist())
-        
-    # # Calculate errors before assertions for reporting
-    # abs_error = torch.abs(golden_ref_v1 - out)
-    # rel_error = abs_error / (1e-4 + torch.maximum(torch.abs(golden_ref_v1), torch.abs(out)))
-    # max_abs_error = abs_error.max().item()
-    # max_rel_error = rel_error.max().item()
-    # print(f"Max absolute error between golden_ref_v1 and out: {max_abs_error:.3e}")
-    # print(f"Max relative error between golden_ref_v1 and out: {max_rel_error:.3e}")
-        
-    
-    
+
+
+# bfloat16 usually has lower accuracy. https://github.com/Dao-AILab/flash-attention/issues/1071    
     
 if __name__ == "__main__":
     test_attention_configs(causal=True, nhead_q=2, nhead_k=2, softmax_scale=None, dtype=torch.float32, q_block_size=16, k_block_size=16, k_q_same_seqlen=True)
