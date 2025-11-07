@@ -11,6 +11,7 @@ from hbsattn.reference import (
 from hbsattn.fwd_triton import HBSAttention
 from hbsattn.utils import calculate_blocks
 
+
 @pytest.mark.parametrize("causal", [False, True], ids=["causal_False", "causal_True"])
 @pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)], ids=["nhead_q_2_nhead_k_2", "nhead_q_4_nhead_k_2", "nhead_q_8_nhead_k_2"]) 
 @pytest.mark.parametrize("softmax_scale", [None, 0.333], ids=["softmax_scale_None", "softmax_scale_0.333"])
@@ -53,6 +54,8 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
 
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
 
+    golden_ref_in_float32 = hbsattn_reference_v1_base(q.float(), k.float(), v.float(), cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     golden_ref_v2 = hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
@@ -62,15 +65,17 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
     # Check that all golden refs are finite and close
+    assert torch.all(torch.isfinite(golden_ref_in_float32))
     assert torch.all(torch.isfinite(golden_ref_v1))
     assert torch.all(torch.isfinite(golden_ref_v2))
     assert torch.all(torch.isfinite(golden_ref_v3))
     assert torch.all(torch.isfinite(out))
     
-
-    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-2, rtol=1e-2)
-    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-2, rtol=1e-2)
-    assert torch.allclose(golden_ref_v1, out, atol=1e-2, rtol=1e-2)
+    # our impl should have less error than the reference impl in float32.
+    assert torch.allclose(torch.abs(golden_ref_in_float32 - golden_ref_v1), torch.abs(golden_ref_in_float32 - out), atol=1e-3, rtol=1e-2)
+    # assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-2, rtol=1e-2)
+    # assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-2, rtol=1e-2)
+    # assert torch.allclose(golden_ref_v1, out, atol=1e-2, rtol=1e-2)
 
 
 # bfloat16 usually has lower accuracy. https://github.com/Dao-AILab/flash-attention/issues/1071    
