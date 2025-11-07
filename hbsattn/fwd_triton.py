@@ -127,7 +127,7 @@ def _fwd_kernel(
             
             acc += tl.dot(p, v_block, allow_tf32=False)
 
-            tl.device_print("before acc", acc)
+            # tl.device_print("before acc", acc)
             m_i = m_ij
 
     l_i = tl.where(l_i == 0, 1, l_i) # might be a working trick for the case when l_i is not updated at all. 
