@@ -31,7 +31,7 @@ if __name__ == "__main__":
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
-    headdim = 18
+    headdim = 16
     q_block_size = 16
     k_block_size = 16
 
