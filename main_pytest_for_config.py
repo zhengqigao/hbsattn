@@ -19,7 +19,7 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("q_block_size", [16, 32], ids=["q_block_size_16", "q_block_size_32"])
 @pytest.mark.parametrize("k_block_size", [16, 32], ids=["k_block_size_16", "k_block_size_32"])
 @pytest.mark.parametrize("k_q_same_seqlen", [True, False], ids=["k_q_same_seqlen_True", "k_q_same_seqlen_False"])
-def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen, mag):
+def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen):
     device = torch.cuda.current_device()
 
     if k_q_same_seqlen:
