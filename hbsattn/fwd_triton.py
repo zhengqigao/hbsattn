@@ -104,7 +104,7 @@ def _fwd_kernel(
             qk += tl.dot(q_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
             qk *= softmax_scale
             
-
+            tl.device_print("qk", qk)
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
             qk -= m_ij[:, None]
             
