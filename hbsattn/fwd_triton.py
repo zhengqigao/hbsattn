@@ -142,7 +142,7 @@ def _fwd_kernel(
     
     off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
     out_ptr = out + off_o
-    tl.store(out_ptr, acc, mask = off_m[:, None] < end_m)
+    tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
 
     off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
     tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
