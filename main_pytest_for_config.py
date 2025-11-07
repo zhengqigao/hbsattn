@@ -11,7 +11,6 @@ from hbsattn.reference import (
 from hbsattn import HBSAttention
 from hbsattn.utils import calculate_blocks
 
-
 @pytest.mark.parametrize("causal", [False, True], ids=["causal_False", "causal_True"])
 @pytest.mark.parametrize(
     "nhead_q,nhead_k", 
@@ -20,7 +19,7 @@ from hbsattn.utils import calculate_blocks
 )
 @pytest.mark.parametrize("softmax_scale", [None, 0.333], ids=["softmax_scale_None", "softmax_scale_0.333"])
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32], ids=["dtype_bfloat16", "dtype_float32"])
-@pytest.mark.parametrize("q_block_size", [16, 32, 80], ids=["q_block_size_16", "q_block_size_32"])
+@pytest.mark.parametrize("q_block_size", [16, 32, 80], ids=["q_block_size_16", "q_block_size_32", "q_block_size_80"])
 @pytest.mark.parametrize("k_block_size", [16, 32], ids=["k_block_size_16", "k_block_size_32"])
 @pytest.mark.parametrize("k_q_same_seqlen", [True, False], ids=["k_q_same_seqlen_True", "k_q_same_seqlen_False"])
 @pytest.mark.parametrize("headdim", [16, 18], ids=["headdim_16", "headdim_18"])
