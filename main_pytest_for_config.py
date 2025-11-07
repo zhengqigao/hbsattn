@@ -11,14 +11,14 @@ from hbsattn.reference import (
 from hbsattn.fwd_triton import HBSAttention
 from hbsattn.utils import calculate_blocks
 
-@pytest.mark.parametrize("causal", [False, True])
-@pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)])  # nhead_q % nhead_k == 0
-@pytest.mark.parametrize("softmax_scale", [None, 0.333])
-@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32])
-@pytest.mark.parametrize("q_block_size", [16, 32])
-@pytest.mark.parametrize("k_block_size", [16, 32])
-@pytest.mark.parametrize("k_q_same_seqlen", [True, False])
-@pytest.mark.parametrize("mag", [0.1,1.0,10])
+@pytest.mark.parametrize("causal", [False, True], ids=["causal_False", "causal_True"])
+@pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)], ids=["nhead_q_2_nhead_k_2", "nhead_q_4_nhead_k_2", "nhead_q_8_nhead_k_2"])  # nhead_q % nhead_k == 0
+@pytest.mark.parametrize("softmax_scale", [None, 0.333], ids=["softmax_scale_None", "softmax_scale_0.333"])
+@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32], ids=["dtype_bfloat16", "dtype_float32"])
+@pytest.mark.parametrize("q_block_size", [16, 32], ids=["q_block_size_16", "q_block_size_32"])
+@pytest.mark.parametrize("k_block_size", [16, 32], ids=["k_block_size_16", "k_block_size_32"])
+@pytest.mark.parametrize("k_q_same_seqlen", [True, False], ids=["k_q_same_seqlen_True", "k_q_same_seqlen_False"])
+@pytest.mark.parametrize("mag", [0.1,1.0,10], ids=["mag_0.1", "mag_1.0", "mag_10"])
 def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen, mag):
     device = torch.cuda.current_device()
 
