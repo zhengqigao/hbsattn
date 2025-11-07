@@ -159,7 +159,7 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
     head_q_to_k_ratio = nhead_q // nhead_k
 
     headdim = q.shape[2]
-    
+    assert (q_block_size & (q_block_size - 1) == 0) and (k_block_size & (k_block_size - 1) == 0), "q_block_size and k_block_size must be powers of 2"
     BLOCK_M = q_block_size
     BLOCK_N = k_block_size
     BLOCK_DIM = max(triton.next_power_of_2(headdim), 16)
