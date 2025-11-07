@@ -112,7 +112,6 @@ def _fwd_kernel(
             
             p = tl.exp(qk)
             
-            tl.device_print("p", p)
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
             
@@ -126,7 +125,6 @@ def _fwd_kernel(
             # tl.device_print("v_block", v_block)
             p = p.to(v.type.element_ty)
             
-            tl.device_print("v_block", v_block)
             
             acc += tl.dot(p, v_block, allow_tf32=False)
 
