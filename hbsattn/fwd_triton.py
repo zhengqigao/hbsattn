@@ -170,7 +170,7 @@ def _forward(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_bl
     lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     
-    # launch kernel grid according to spliting q. 
+    # launch kernel
     grid = (num_q_block, nhead_q)
 
     _fwd_kernel[grid](
