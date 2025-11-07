@@ -71,13 +71,15 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     assert torch.all(torch.isfinite(golden_ref_v3))
     assert torch.all(torch.isfinite(out))
     
-    # our impl should have less error than the reference impl in float32.
-    assert torch.allclose(torch.abs(golden_ref_in_float32 - golden_ref_v1), torch.abs(golden_ref_in_float32 - out), atol=1e-3, rtol=1e-2)
     tmp1 = torch.abs(golden_ref_in_float32 - golden_ref_v1)
     tmp2 = torch.abs(golden_ref_in_float32 - out)
     print(f"tmp1: {tmp1}")
     print(f"tmp2: {tmp2}")
     print(f"max error between tmp1 and tmp2: {torch.max(torch.abs(tmp1 - tmp2))}")
+    
+    # our impl should have less error than the reference impl in float32.
+    assert torch.allclose(torch.abs(golden_ref_in_float32 - golden_ref_v1), torch.abs(golden_ref_in_float32 - out), atol=1e-3, rtol=1e-2)
+
     # assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-2, rtol=1e-2)
     # assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-2, rtol=1e-2)
     # assert torch.allclose(golden_ref_v1, out, atol=1e-2, rtol=1e-2)
