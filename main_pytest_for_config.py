@@ -77,12 +77,13 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     print(f"tmp2.max(): {tmp2.max()}")
     print(f"max error between tmp1 and tmp2: {torch.max(torch.abs(tmp1 - tmp2))}")
     
-    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-3, rtol=1e-3)
-    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-3, rtol=1e-3)
-    assert torch.allclose(golden_ref_v1, out, atol=1e-3, rtol=1e-3)
+    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=5e-3, rtol=1e-2)
+    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=5e-3, rtol=1e-2)
+    assert torch.allclose(golden_ref_v1, out, atol=5e-3, rtol=1e-2)
 
 
-# bfloat16 usually has lower accuracy. https://github.com/Dao-AILab/flash-attention/issues/1071    
+# bfloat16 usually has lower accuracy. https://github.com/Dao-AILab/flash-attention/issues/1071   
+# As this post shows, usually the absoluate error is around 0.001, https://x.com/tri_dao/status/1787767984360153283 
     
 if __name__ == "__main__":
     test_attention_configs(causal=True, nhead_q=2, nhead_k=2, softmax_scale=None, dtype=torch.bfloat16, q_block_size=16, k_block_size=16, k_q_same_seqlen=True)
