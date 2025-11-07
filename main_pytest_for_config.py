@@ -73,8 +73,8 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     
     tmp1 = torch.abs(golden_ref_in_float32 - golden_ref_v1)
     tmp2 = torch.abs(golden_ref_in_float32 - out)
-    print(f"tmp1: {tmp1}")
-    print(f"tmp2: {tmp2}")
+    print(f"tmp1.max(): {tmp1.max()}")
+    print(f"tmp2.max(): {tmp2.max()}")
     print(f"max error between tmp1 and tmp2: {torch.max(torch.abs(tmp1 - tmp2))}")
     
     # our impl should have less error than the reference impl in float32.
