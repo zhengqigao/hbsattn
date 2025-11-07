@@ -56,7 +56,7 @@ def _fwd_kernel(
     
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
-    q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m, other=float('-inf'))
+    q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m, other=0.0)
     
 
     # accumulator
