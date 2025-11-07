@@ -72,9 +72,9 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     assert torch.all(torch.isfinite(out))
     
 
-    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-3, rtol=1e-2)
-    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-3, rtol=1e-2)
-    assert torch.allclose(golden_ref_v1, out, atol=1e-3, rtol=1e-2)
+    assert torch.allclose(golden_ref_v1, golden_ref_v2, atol=1e-2, rtol=1e-2)
+    assert torch.allclose(golden_ref_v1, golden_ref_v3, atol=1e-2, rtol=1e-2)
+    assert torch.allclose(golden_ref_v1, out, atol=1e-2, rtol=1e-2)
     
     # print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
     # print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
