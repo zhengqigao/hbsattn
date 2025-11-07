@@ -96,7 +96,7 @@ def _fwd_kernel(
             
             # core part: online Softmax
             qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-            qk += tl.dot(q_block, k_block, allow_tf32=False) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
+            qk += tl.dot(q_block, k_block, ) ## BUG: must provide allow_tf32, otherwise the result is incorrect. 
             qk *= softmax_scale
             
 
@@ -125,7 +125,7 @@ def _fwd_kernel(
             p = p.to(v.type.element_ty)
             
             
-            acc += tl.dot(p, v_block, allow_tf32=False)
+            acc += tl.dot(p, v_block,)
 
             # tl.device_print("before acc", acc)
             m_i = m_ij
