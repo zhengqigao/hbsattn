@@ -86,4 +86,4 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
 # bfloat16 usually has lower accuracy. https://github.com/Dao-AILab/flash-attention/issues/1071    
     
 if __name__ == "__main__":
-    test_attention_configs(causal=True, nhead_q=2, nhead_k=2, softmax_scale=None, dtype=torch.float32, q_block_size=16, k_block_size=16, k_q_same_seqlen=True)
+    test_attention_configs(causal=True, nhead_q=2, nhead_k=2, softmax_scale=None, dtype=torch.bfloat16, q_block_size=16, k_block_size=16, k_q_same_seqlen=True)
