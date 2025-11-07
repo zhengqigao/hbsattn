@@ -27,30 +27,20 @@ def _check_correctness(golden: torch.Tensor, result: torch.Tensor, name: str) ->
     max_abs_val = error_info['max_abs']
     max_idx = torch.nonzero(abs_error == max_abs_val)
     # For multi-dim, pick the first occurrence
-    if max_idx.numel() > 0:
-        max_idx = tuple(max_idx[0].tolist())
-        print(f"[Error Plot] Max abs error ({max_abs_val:.3e}) at index: {max_idx}")
-        print(f"    golden[{max_idx}] = {golden[max_idx].item()}")
-        print(f"    result[{max_idx}] = {result[max_idx].item()}")
-    else:
-        print("[Error Plot] Could not locate max abs error index.")
+    max_abs_idx = tuple(max_idx[0].tolist())
+
 
     # Print info for max relative error
     max_rel_val = error_info['max_rel']
     max_rel_idx = torch.nonzero(rel_error == max_rel_val)
-    if max_rel_idx.numel() > 0:
-        max_rel_idx = tuple(max_rel_idx[0].tolist())
-        print(f"[Error Plot] Max rel error ({max_rel_val:.3e}) at index: {max_rel_idx}")
-        print(f"    golden[{max_rel_idx}] = {golden[max_rel_idx].item()}")
-        print(f"    result[{max_rel_idx}] = {result[max_rel_idx].item()}")
-        print(f"    abs_error[{max_rel_idx}] = {abs_error[max_rel_idx].item()}")
-    else:
-        print("[Error Plot] Could not locate max rel error index.")
+    max_rel_idx = tuple(max_rel_idx[0].tolist())
 
-    print(f"Max Rel Error: {error_info['max_rel']:.3e}")
     print(f"Mean Rel Error: {error_info['mean_rel']:.3e}")
-    print(f"Max Abs Error: {error_info['max_abs']:.3e}")
     print(f"Mean Abs Error: {error_info['mean_abs']:.3e}")
+    
+    print(f"Max Rel Error: {error_info['max_rel']:.3e}, at index: {max_rel_idx}, golden: {golden[max_rel_idx].item()}, result: {result[max_rel_idx].item()}")
+    print(f"Max Abs Error: {error_info['max_abs']:.3e} at index: {max_abs_idx}, golden: {golden[max_abs_idx].item()}, result: {result[max_abs_idx].item()}")
+
     return error_info
 
 

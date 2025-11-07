@@ -8,19 +8,24 @@ from hbsattn.reference import (
     hbsattn_reference_v2_with_pytorch,
     hbsattn_reference_v3_qkallfirst,
 )
-from hbsattn.fwd_triton import HBSAttention
+from hbsattn import HBSAttention
 from hbsattn.utils import calculate_blocks
 
 
 @pytest.mark.parametrize("causal", [False, True], ids=["causal_False", "causal_True"])
-@pytest.mark.parametrize("nhead_q,nhead_k", [(2, 2), (4, 2), (8, 2)], ids=["nhead_q_2_nhead_k_2", "nhead_q_4_nhead_k_2", "nhead_q_8_nhead_k_2"]) 
+@pytest.mark.parametrize(
+    "nhead_q,nhead_k", 
+    [(2, 2), (4, 2), (8, 2)],
+    ids=["nhead_q_2_nhead_k_2", "nhead_q_4_nhead_k_2", "nhead_q_8_nhead_k_2"]
+)
 @pytest.mark.parametrize("softmax_scale", [None, 0.333], ids=["softmax_scale_None", "softmax_scale_0.333"])
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32], ids=["dtype_bfloat16", "dtype_float32"])
 @pytest.mark.parametrize("q_block_size", [16, 32], ids=["q_block_size_16", "q_block_size_32"])
 @pytest.mark.parametrize("k_block_size", [16, 32], ids=["k_block_size_16", "k_block_size_32"])
 @pytest.mark.parametrize("k_q_same_seqlen", [True, False], ids=["k_q_same_seqlen_True", "k_q_same_seqlen_False"])
-@pytest.mark.parametrize("headdim", [16, 18], ids = ["headdim_16, headdim_18"])
-def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen):
+@pytest.mark.parametrize("headdim", [16, 18], ids=["headdim_16", "headdim_18"])
+@pytest.mark.parametrize("tile_mode", ["auto", "fix"], ids=["tile_mode_auto", "tile_mode_fix"])
+def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen, headdim,tile_mode):
     device = torch.cuda.current_device()
 
     if k_q_same_seqlen:
@@ -29,11 +34,11 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     else:
         cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) 
         cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) 
+    # [0,32, 61, 100, 134, 157, 201, 253, 260]
     
     k_seqlen = cu_k_seqlens[-1].item()
     q_seqlen = cu_q_seqlens[-1].item()
-    
-    headdim = 16
+
 
     q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) 
@@ -63,7 +68,7 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
 
     golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, tile_mode, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
     # Check that all golden refs are finite and close
     assert torch.all(torch.isfinite(golden_ref_in_float32))

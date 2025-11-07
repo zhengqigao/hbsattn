@@ -1,28 +1,35 @@
 import torch
-from hbsattn.fwd_triton import HBSAttention
+from hbsattn import HBSAttention
 from hbsattn.reference import hbsattn_reference_v1_base, hbsattn_reference_v2_with_pytorch, hbsattn_reference_v3_qkallfirst
 from hbsattn.utils import calculate_blocks
 from hbsattn.benchmark import benchmark
-
+import argparse
 
 
 if __name__ == "__main__":
 
-    nruns = 2
-    nwarmup = 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--causal', action='store_true', default=False)
+    parser.add_argument('--softmax_scale', type=float, default=None)
+    parser.add_argument('--nruns', type=int, default=2)
+    parser.add_argument('--nwarmup', type=int, default=1)
+    parser.add_argument('--headdim', type=int, default=16)
+    args = parser.parse_args()
     
+    nruns = args.nruns
+    nwarmup = args.nwarmup
+    causal = args.causal
+    softmax_scale = args.softmax_scale
+    headdim = args.headdim
+        
     device = torch.cuda.current_device()
-
-    causal = False
-    softmax_scale = None
-    
     dtype = torch.float32
     
-    cu_k_seqlens = torch.tensor([0,32,61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
+    cu_k_seqlens = torch.tensor([0,32, 61, 100, 134, 157, 201, 253, 260], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0,32,61, 100, 134, 157], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    cu_q_seqlens = torch.tensor([0,32, 64, 96, 128, 160,165, 170, 280], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
@@ -31,13 +38,11 @@ if __name__ == "__main__":
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
-    headdim = 17
-    q_block_size = 16
-    k_block_size = 16
-
+    q_block_size = 96
+    k_block_size = 96
     
-    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     # v = torch.arange(k_seqlen,device=device, dtype=dtype).view(k_seqlen, 1, 1).repeat(1, nhead_k, headdim)
     # Set print precision for PyTorch tensors to display 7 decimal places
@@ -80,17 +85,21 @@ if __name__ == "__main__":
 
     golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    out = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
-
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
     print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
-    print("out", out, torch.isnan(out).any())
-    # Find the index of the most different value between out and golden_ref_v1, and show their values
-    diff = (out - golden_ref_v1).abs()
-    max_diff = diff.max()
-    max_idx = (diff == max_diff).nonzero(as_tuple=True)
+    
+
+    out_auto_tilesize = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    print("out_auto_tilesize", out_auto_tilesize, torch.isnan(out_auto_tilesize).any())
+
+
+    # try:
+    #     out_fix_tilesize = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    #     print("out_fix_tilesize", out_fix_tilesize, torch.isnan(out_fix_tilesize).any())
+    # except Exception as e:
+    #     print("Error in out_fix_tilesize", e)
+
 
 
     # benchmarking start here
@@ -115,13 +124,26 @@ if __name__ == "__main__":
         'name': 'hbsattn_reference_v3_qkallfirst'
     }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'HBSAttention'
-    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
+    try:
+        benchmark({
+            'golden': golden_ref_v1,
+            'n_runs': nruns,
+            'n_warmup': nwarmup,
+            'name': 'HBSAttention_auto_tilesize'
+        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    except Exception as e:
+        print("Error in HBSAttention_auto_tilesize", e)
+
+    # try:
+    #     benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'HBSAttention_fix_tilesize'
+    # }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+        
+    # except Exception as e:
+    #     print("Error in HBSAttention_fix_tilesize", e)
 
     
     
