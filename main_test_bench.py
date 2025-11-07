@@ -38,8 +38,8 @@ if __name__ == "__main__":
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
-    q_block_size = 96
-    k_block_size = 96
+    q_block_size = 32
+    k_block_size = 32
     
     q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
@@ -94,11 +94,11 @@ if __name__ == "__main__":
     print("out_auto_tilesize", out_auto_tilesize, torch.isnan(out_auto_tilesize).any())
 
 
-    # try:
-    #     out_fix_tilesize = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    #     print("out_fix_tilesize", out_fix_tilesize, torch.isnan(out_fix_tilesize).any())
-    # except Exception as e:
-    #     print("Error in out_fix_tilesize", e)
+    try:
+        out_fix_tilesize = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+        print("out_fix_tilesize", out_fix_tilesize, torch.isnan(out_fix_tilesize).any())
+    except Exception as e:
+        print("Error in out_fix_tilesize", e)
 
 
 
@@ -134,16 +134,16 @@ if __name__ == "__main__":
     except Exception as e:
         print("Error in HBSAttention_auto_tilesize", e)
 
-    # try:
-    #     benchmark({
-    #     'golden': golden_ref_v1,
-    #     'n_runs': nruns,
-    #     'n_warmup': nwarmup,
-    #     'name': 'HBSAttention_fix_tilesize'
-    # }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    try:
+        benchmark({
+        'golden': golden_ref_v1,
+        'n_runs': nruns,
+        'n_warmup': nwarmup,
+        'name': 'HBSAttention_fix_tilesize'
+    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
         
-    # except Exception as e:
-    #     print("Error in HBSAttention_fix_tilesize", e)
+    except Exception as e:
+        print("Error in HBSAttention_fix_tilesize", e)
 
     
     
