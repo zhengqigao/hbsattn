@@ -101,7 +101,7 @@ def _fwd_kernel(
             
             # core part: online Softmax
             qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-            qk += tl.dot(q_block, k_block, ) # Provdie allow_tf32=False can achieve better accuracy for float32. 
+            qk += tl.dot(q_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
             qk *= softmax_scale
             
 
@@ -128,7 +128,7 @@ def _fwd_kernel(
             p = p.to(v.type.element_ty)
             
             
-            acc += tl.dot(p, v_block) # Provdie allow_tf32=False can achieve better accuracy for float32. 
+            acc += tl.dot(p, v_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
             m_i = m_ij
 
     l_i = tl.where(l_i == 0, 1, l_i) # might be a working trick for the case when l_i is not updated at all. 
