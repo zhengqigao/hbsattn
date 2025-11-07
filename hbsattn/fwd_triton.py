@@ -92,7 +92,7 @@ def _fwd_kernel(
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
-            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n, other=float('-inf'))
+            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, mask = off_n[None,:] < end_n, other=0.0)
             v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, mask = off_n[:,None] < end_n, other=0.0)
             
             # core part: online Softmax
@@ -106,7 +106,10 @@ def _fwd_kernel(
             
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
-                        
+            
+            if start_n + BLOCK_N > end_n: 
+                qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
+            
             p = tl.exp(qk)
             
             tl.device_print("p", p)
