@@ -185,7 +185,7 @@ def _fwd_kernel(
     tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-
+# book keeping for making autotuning
 def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
 
