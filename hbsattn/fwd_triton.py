@@ -122,6 +122,9 @@ def _fwd_kernel(
             # tl.device_print("p", p)
             # tl.device_print("v_block", v_block)
             p = p.to(v.type.element_ty)
+            
+            tl.device_print("v_block", v_block)
+            
             acc += tl.dot(p, v_block, allow_tf32=False)
 
             tl.device_print("before acc", acc)
