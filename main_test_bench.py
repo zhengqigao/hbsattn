@@ -26,7 +26,7 @@ if __name__ == "__main__":
     dtype = torch.bfloat16
     
     # cu_k_seqlens = torch.tensor([0,32, 61, 100, 134, 157, 201, 253, 260], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
-    unit_seqlen = 32
+    unit_seqlen = 256
     batch_size = 8
     cu_k_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
@@ -42,8 +42,8 @@ if __name__ == "__main__":
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
-    q_block_size = 16
-    k_block_size = 16
+    q_block_size = 128
+    k_block_size = 128
     
     q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
