@@ -262,6 +262,8 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
     max_seqlen_q = torch.max(cu_q_seqlens[1:] - cu_q_seqlens[:-1]).item()
     max_seqlen_k = torch.max(cu_k_seqlens[1:] - cu_k_seqlens[:-1]).item()
     
+    print(block_mask.shape)
+    print(q.shape)
     out = block_sparse_attn_func(
     q, 
     k,
