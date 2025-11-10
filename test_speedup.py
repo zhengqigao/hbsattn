@@ -144,4 +144,4 @@ if __name__ == "__main__":
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_flexattn'
-    }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, score_mod = None, block_mask_hanlab_bsattn, scale = softmax_scale, enable_gqa = False)
+    }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, score_mod = None, block_mask = block_mask_hanlab_bsattn, scale = softmax_scale, enable_gqa = False)
