@@ -22,12 +22,13 @@ if __name__ == "__main__":
     causal = args.causal
     softmax_scale = args.softmax_scale
     headdim = args.headdim
-        
+    unit_seqlen = args.unit_seqlen
+    
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
     
     # cu_k_seqlens = torch.tensor([0,32, 61, 100, 134, 157, 201, 253, 260], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
-    unit_seqlen = 256
+
     batch_size = 8
     cu_k_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
