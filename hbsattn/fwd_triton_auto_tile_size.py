@@ -206,9 +206,9 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
     head_q_to_k_ratio = nhead_q // nhead_k
     
     # Verify block sizes are valid
-    BLOCK_M = 2 ** get_two_in_factorization(q_block_size) # 2 ** get_two_in_factorization(q_block_size)
-    BLOCK_N = 2 ** get_two_in_factorization(k_block_size)
-    assert BLOCK_M >= 16 and BLOCK_N >= 16, "q_block_size and k_block_size must be integer multiples of 16."
+    # BLOCK_M = 2 ** get_two_in_factorization(q_block_size) # 2 ** get_two_in_factorization(q_block_size)
+    # BLOCK_N = 2 ** get_two_in_factorization(k_block_size)
+    # assert BLOCK_M >= 16 and BLOCK_N >= 16, "q_block_size and k_block_size must be integer multiples of 16."
     
     BLOCK_DIM = max(triton.next_power_of_2(headdim), 16)
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
@@ -240,8 +240,8 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         headdim,
         q_block_size,
         k_block_size,
-        BLOCK_M=BLOCK_M,
-        BLOCK_N=BLOCK_N,
+        # BLOCK_M=BLOCK_M,
+        # BLOCK_N=BLOCK_N,
         BLOCK_DIM=BLOCK_DIM
     )
     return out
