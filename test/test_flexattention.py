@@ -104,23 +104,13 @@ if __name__ == "__main__":
 
     
     # run once to get a golden reference
-    golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    golden_ref_v1 = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
 
     del block_mask # It won't be used from now on
     torch.cuda.empty_cache()
 
-    try:
-        v4_result = benchmark({
-                    'golden': golden_ref_v1,
-                    'n_runs': nruns,
-                    'n_warmup': nwarmup,
-                    'name': 'HBSAttention_hanlab_bsattn'
-        }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
-    except Exception as e:
-        print(f"Error benchmarking hanlab bsattn: {e}")
-        v4_result = {}
-    
+
 
         # Construct the bached q,k,v for flex_attention. shape = [B,H,S,D]
     q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
