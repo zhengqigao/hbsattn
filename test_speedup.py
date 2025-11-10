@@ -69,7 +69,7 @@ if __name__ == "__main__":
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
-    # Construct the bached q,k,v for flex_attention.
+    # Construct the bached q,k,v for flex_attention. shape = [B,H,S,D]
     q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
     k_padded = k.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
     v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
@@ -164,7 +164,6 @@ if __name__ == "__main__":
         
     
     # if save_benchmark_to_file is not empty, save the benchmark results to a file.
-    print(f"ss,", args.save_benchmark_to_file)
     if args.save_benchmark_to_file:
         # Save all benchmark results in a dict for one-shot dump
         all_results = {

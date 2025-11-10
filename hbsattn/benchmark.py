@@ -11,9 +11,8 @@ def _check_correctness(golden: torch.Tensor, result: torch.Tensor, name: str) ->
     if golden.shape != result.shape:
         # this might happen if in the format of [B,H,S,D] v.s. [S, H, D]
         # flexattention returns [B,H,S,D]
-        # we will do automatica reshape
-        warnings.warn(f"Shape mismatch: golden shape = {golden.shape} vs result shape = {result.shape}")
-        if result.ndim == 4: 
+        # we will do automatical reshape silently
+        if golden.ndim == 3 and result.ndim == 4: 
             b, h, s, d = result.shape
             result = result.permute(0,2,1,3).reshape(-1, h, d)
 
