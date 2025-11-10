@@ -127,6 +127,7 @@ if __name__ == "__main__":
         print(f"Error benchmarking auto tilesize: {e}")
         our_auto_result = {}
 
+
     try:
         our_fix_result = benchmark({
             'golden': golden_ref_v1,
@@ -137,6 +138,10 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error benchmarking fix tilesize: {e}")
         our_fix_result = {}
+
+
+    del block_mask # It won't be used from now on
+    torch.cuda.empty_cache()
 
     try:
         v4_result = benchmark({
@@ -149,11 +154,14 @@ if __name__ == "__main__":
         print(f"Error benchmarking hanlab bsattn: {e}")
         v4_result = {}
 
+    del q,k,v  # they won't be used from now on
+    torch.cuda.empty_cache()
+    
     try:
         # Construct the bached q,k,v for flex_attention. shape = [B,H,S,D]
         q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
         k_padded = k.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
-        v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)    
+        v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)   
         v5_result = benchmark({
                     'golden': golden_ref_v1,
                     'n_runs': nruns,
