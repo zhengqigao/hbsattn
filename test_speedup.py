@@ -78,7 +78,7 @@ if __name__ == "__main__":
             for t1 in range(unit_seqlen//q_block_size):
                 for t2 in range(unit_seqlen//k_block_size):
                     q_block_idx = i * (unit_seqlen//q_block_size) + t1
-                    k_block_idx = j * (unit_seqlen//k_block_size) + t2
+                    k_block_idx = i * (unit_seqlen//k_block_size) + t2
                     print("i, j, t1, t2", i, j, t1, t2)
                     print("q_block_idx", q_block_idx)
                     print("k_block_idx", k_block_idx)
