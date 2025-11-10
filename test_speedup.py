@@ -78,8 +78,8 @@ if __name__ == "__main__":
     tmpq_padded = torch.empty_like(q_padded)
     
     for i in range(batch_size):
-        start_index = i * (unit_seqlen//q_block_size)
-        end_index = start_index + (unit_seqlen//q_block_size)
+        start_index = i * unit_seqlen
+        end_index = start_index + unit_seqlen
         tmpq_padded[i] = q[start_index:end_index].permute(1,0,2)
     assert torch.allclose(q_padded, tmpq_padded), "q_padded and tmpq_padded are not the same."
     
