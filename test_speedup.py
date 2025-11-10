@@ -153,7 +153,8 @@ if __name__ == "__main__":
     # if save_benchmark_to_file is not empty, save the benchmark results to a file.
     print(f"ss,", args.save_benchmark_to_file)
     if args.save_benchmark_to_file:
-        os.makedirs(args.save_benchmark_to_file, exist_ok=True)
+        if not os.path.exists(args.save_benchmark_to_file):
+            os.makedirs(args.save_benchmark_to_file)
         # Save all benchmark results in a dict for one-shot dump
         all_results = {
             "our_result": our_result,
