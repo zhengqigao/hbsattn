@@ -72,12 +72,16 @@ if __name__ == "__main__":
     
     # construct block mask for hanlab_block_sparse_attn
     block_mask_hanlab_bsattn = torch.empty(batch_size, nhead_k, unit_seqlen//q_block_size, unit_seqlen//k_block_size, device=device, dtype=torch.bool)
+    print("block_mask_hanlab_bsattn.shape", block_mask_hanlab_bsattn.shape)
     for i in range(batch_size):
         for j in range(nhead_k):
             for t1 in range(unit_seqlen//q_block_size):
                 for t2 in range(unit_seqlen//k_block_size):
                     q_block_idx = i * (unit_seqlen//q_block_size) + t1
                     k_block_idx = j * (unit_seqlen//k_block_size) + t2
+                    print("i, j, t1, t2", i, j, t1, t2)
+                    print("q_block_idx", q_block_idx)
+                    print("k_block_idx", k_block_idx)
                     block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
 
     
