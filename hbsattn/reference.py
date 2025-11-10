@@ -13,10 +13,12 @@ except Exception as e:
     hanlab_block_sparse_attn_func = None
 
 try:
-    from torch.nn.attention.flex_attention import flex_attention
+    from torch.nn.attention.flex_attention import flex_attention, create_block_mask
 except Exception as e:
     print(f"Importing FlexAttention failed with error: {e}")
     flex_attention = None
+    create_block_mask = None
+
 
 def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
     
@@ -290,6 +292,27 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
     return out 
 
 
-def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, score_mod, block_mask, scale, enable_gqa):
-    out = flex_attention(q_padded, k_padded, v_padded, score_mod, block_mask, scale=scale, enable_gqa=enable_gqa)
-    return out 
+def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, block_mask, block_size, causal, scale):
+    
+    def mask_mod(b, h, q_idx, kv_idx):
+        if causal and q_idx < kv_idx:
+            return False
+        q_block = q_idx // block_size
+        kv_block = kv_idx // block_size
+        return block_mask[b, h, q_block, kv_block]
+    
+    B = q_padded.shape[0]
+    H = q_padded.shape[1]
+    S = q_padded.shape[2]
+    flex_block_mask = create_block_mask(
+        mask_mod, 
+        B=B, 
+        H=H, 
+        Q_LEN=S, 
+        KV_LEN=S,
+        BLOCK_SIZE=block_size
+    )
+    
+    # Use flex_attention with the optimized block mask
+    output = flex_attention(q_padded, k_padded, v_padded, block_mask=flex_block_mask, scale=scale)
+    return output 

@@ -48,6 +48,7 @@ if __name__ == "__main__":
     
     q_block_size = 128 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
     k_block_size = 128
+    assert q_block_size == k_block_size == 128, "q_block_size and k_block_size must be the same."
     
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
@@ -144,4 +145,4 @@ if __name__ == "__main__":
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_flexattn'
-    }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, score_mod = None, block_mask = block_mask_hanlab_bsattn, scale = softmax_scale, enable_gqa = False)
+    }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, block_mask, q_block_size, causal, softmax_scale)
