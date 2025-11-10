@@ -112,7 +112,7 @@ def profile_blocksparse_fwd():
     device = 'cuda:0'
     dtype = torch.float16
     causal = True
-    batch_size = 8
+    batch_size = 5
     sparsity_sampling_steps = 20
     seqlen_vals = [1024,2048,4096,8192,16384,32768,65536]
     headdim = 128

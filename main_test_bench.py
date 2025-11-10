@@ -83,22 +83,22 @@ if __name__ == "__main__":
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
     
     # construct block mask for hanlab_block_sparse_attn
-    # block_mask_hanlab_bsattn = torch.empty(batch_size, nhead_k, unit_seqlen//q_block_size, unit_seqlen//k_block_size, device=device, dtype=torch.bool)
-    # for i in range(batch_size):
-    #     for j in range(nhead_k):
-    #         for t1 in range(unit_seqlen//q_block_size):
-    #             for t2 in range(unit_seqlen//k_block_size):
-    #                 q_block_idx = i * (unit_seqlen//q_block_size) + t1
-    #                 k_block_idx = j * (unit_seqlen//k_block_size) + t2
-    #                 block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
-    block_mask_hanlab_bsattn = torch.zeros(batch_size, nhead_k, max_k_seqlen//q_block_size, max_k_seqlen//k_block_size, device=device, dtype=torch.bool)
+    block_mask_hanlab_bsattn = torch.empty(batch_size, nhead_k, unit_seqlen//q_block_size, unit_seqlen//k_block_size, device=device, dtype=torch.bool)
     for i in range(batch_size):
         for j in range(nhead_k):
-            for t1 in range(block_mask_hanlab_bsattn.shape[2]):
-                for t2 in range(block_mask_hanlab_bsattn.shape[3]):
-                    q_block_idx = cu_num_q_block[i] + t1
-                    k_block_idx = cu_num_k_block[j] + t2
+            for t1 in range(unit_seqlen//q_block_size):
+                for t2 in range(unit_seqlen//k_block_size):
+                    q_block_idx = i * (unit_seqlen//q_block_size) + t1
+                    k_block_idx = j * (unit_seqlen//k_block_size) + t2
                     block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
+    # block_mask_hanlab_bsattn = torch.zeros(batch_size, nhead_k, max_k_seqlen//q_block_size, max_k_seqlen//k_block_size, device=device, dtype=torch.bool)
+    # for i in range(batch_size):
+    #     for j in range(nhead_k):
+    #         for t1 in range(block_mask_hanlab_bsattn.shape[2]):
+    #             for t2 in range(block_mask_hanlab_bsattn.shape[3]):
+    #                 q_block_idx = cu_num_q_block[i] + t1
+    #                 k_block_idx = cu_num_k_block[j] + t2
+    #                 block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
 
     # block_mask_hanlab_bsattn = block_mask.unsqueeze(0).repeat(batch_size, 1, 1, 1)
     # print("block_mask_hanlab_bsattn.shape", block_mask_hanlab_bsattn.shape)
