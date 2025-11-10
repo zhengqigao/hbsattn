@@ -294,26 +294,41 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
 
 def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, block_mask, block_size, causal, scale):
     
-    def mask_mod(b, h, q_idx, kv_idx):
+    def mask_mod_causal(b, h, q_idx, kv_idx):
 
-        return (not causal or q_idx >= kv_idx) and block_mask[b, h, q_idx // block_size, kv_idx // block_size]
+        return (q_idx >= kv_idx) and block_mask[b, h, q_idx // block_size, kv_idx // block_size]
+    
+    def mask_mod_nocausal(b, h, q_idx, kv_idx):
+        return block_mask[b, h, q_idx // block_size, kv_idx // block_size]
+    
     
     B = q_padded.shape[0]
     H = q_padded.shape[1]
     S = q_padded.shape[2]
     D = q_padded.shape[3]
-    flex_block_mask = create_block_mask(
-        mask_mod,
-        B=B, 
-        H=H,    # nhead
-        Q_LEN=S, 
-        KV_LEN=S,
-        BLOCK_SIZE=block_size
-    )
     
-    # Use flex_attention with the optimized block mask
-    output = flex_attention(q_padded, k_padded, v_padded, block_mask=flex_block_mask, scale=scale)
-    
+    if causal:
+        flex_block_mask = create_block_mask(
+            mask_mod_causal,
+            B=B, 
+            H=H,    # nhead
+            Q_LEN=S, 
+            KV_LEN=S,
+            BLOCK_SIZE=block_size
+        )
+        
+        # Use flex_attention with the optimized block mask
+        output = flex_attention(q_padded, k_padded, v_padded, block_mask=flex_block_mask, scale=scale)
+    else:
+        flex_block_mask = create_block_mask(
+            mask_mod_nocausal,
+            B=B, 
+            H=H,    # nhead
+            Q_LEN=S, 
+            KV_LEN=S,
+            BLOCK_SIZE=block_size
+        )
+        output = flex_attention(q_padded, k_padded, v_padded, block_mask=flex_block_mask, scale=scale)
     # # reshape to [Seqlen, nhead, headdim] for consistency
     # output = output.reshape(-1, H, D)
     return output 
