@@ -54,15 +54,17 @@ def get_autotune_configs(q_block_size, k_block_size):
 # BLOCK_M = 16, 32, ..., 2 ** get_two_in_factorization(q_block_size)
 # BLOCK_N = 16, 32, ..., 2 ** get_two_in_factorization(k_block_size)
 
-# @triton.autotune(
-#     configs=[
-#         triton.Config({"BLOCK_M": 16, "BLOCK_N": 16}, num_warps=4, num_stages=2),
-#         triton.Config({"BLOCK_M": 32, "BLOCK_N": 16}, num_warps=4, num_stages=2),
-#         triton.Config({"BLOCK_M": 32, "BLOCK_N": 32}, num_warps=8, num_stages=2),
-#         triton.Config({"BLOCK_M": 64, "BLOCK_N": 64}, num_warps=8, num_stages=2),
-#     ],
-#     key=['q_block_size', 'k_block_size']
-# )
+@triton.autotune(
+    configs=[
+        triton.Config({"BLOCK_M": 16, "BLOCK_N": 16}, num_warps=4, num_stages=2),
+        triton.Config({"BLOCK_M": 32, "BLOCK_N": 16}, num_warps=4, num_stages=2),
+        triton.Config({"BLOCK_M": 32, "BLOCK_N": 32}, num_warps=8, num_stages=2),
+        triton.Config({"BLOCK_M": 64, "BLOCK_N": 64}, num_warps=8, num_stages=2),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=2),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=2),
+    ],
+    key=['q_block_size', 'k_block_size']
+)
 @triton.jit
 def _fwd_kernel(
             q, k, v,
