@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 break
         block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
     # block_mask = block_mask.fill_(1).contiguous()
-    print("block_mask", block_mask)
+    print("block_mask.shape", block_mask.shape)
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
     
     # construct block mask for hanlab_block_sparse_attn
@@ -101,7 +101,9 @@ if __name__ == "__main__":
 
     block_mask_hanlab_bsattn = block_mask.unsqueeze(0).repeat(batch_size, 1, 1, 1)
     print("block_mask_hanlab_bsattn.shape", block_mask_hanlab_bsattn.shape)
-    
+    print("q.shape", q.shape)
+    print("k.shape", k.shape)
+    print("v.shape", v.shape)
     # run once to get a golden reference
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
