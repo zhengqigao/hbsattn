@@ -100,6 +100,7 @@ if __name__ == "__main__":
     #                     block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,t1 - i * (unit_seqlen//q_block_size),t2 - j * (unit_seqlen//k_block_size)]
 
     block_mask_hanlab_bsattn = block_mask.unsqueeze(0).repeat(batch_size, 1, 1, 1)
+    print("block_mask_hanlab_bsattn.shape", block_mask_hanlab_bsattn.shape)
     
     # run once to get a golden reference
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
