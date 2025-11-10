@@ -153,13 +153,19 @@ if __name__ == "__main__":
     # if save_benchmark_to_file is not empty, save the benchmark results to a file.
     print(f"ss,", args.save_benchmark_to_file)
     if args.save_benchmark_to_file:
-        # Ensure the output directory exists
-        os.makedirs(os.path.dirname(args.save_benchmark_to_file), exist_ok=True)
+        # Get the directory part of the file path, if any
+        dir_path = os.path.dirname(args.save_benchmark_to_file)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
+        # Save all benchmark results in a dict for one-shot dump
+        all_results = {
+            "our_result": our_result,
+            "v1_result": v1_result,
+            "v2_result": v2_result,
+            "v3_result": v3_result,
+            "v4_result": v4_result,
+            "v5_result": v5_result,
+        }
         with open(args.save_benchmark_to_file, 'w') as f:
-            json.dump(our_result, f, indent=4)
-            json.dump(v1_result, f, indent=4)
-            json.dump(v2_result, f, indent=4)
-            json.dump(v3_result, f, indent=4)
-            json.dump(v4_result, f, indent=4)
-            json.dump(v5_result, f, indent=4)
+            json.dump(all_results, f, indent=4)
         print(f"Benchmark results saved to {args.save_benchmark_to_file}")
