@@ -294,19 +294,22 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
 
 def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, block_mask, block_size, causal, scale):
     
-    def mask_mod(b, h, q_idx, kv_idx):
-        if causal and q_idx < kv_idx:
-            return False
+    def mask_mod_nocausal(b, h, q_idx, kv_idx):
         q_block = q_idx // block_size
         kv_block = kv_idx // block_size
         return block_mask[b, h, q_block, kv_block]
+    
+    def mask_mod_causal(b, h, q_idx, kv_idx):
+        q_block = q_idx // block_size
+        kv_block = kv_idx // block_size
+        return block_mask[b, h, q_block, kv_block] and q_idx < kv_idx
     
     B = q_padded.shape[0]
     H = q_padded.shape[1]
     S = q_padded.shape[2]
     D = q_padded.shape[3]
     flex_block_mask = create_block_mask(
-        mask_mod, 
+        mask_mod_nocausal if not causal else mask_mod_causal, 
         B=B, 
         H=H,    # nhead
         Q_LEN=S, 
