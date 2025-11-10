@@ -1,5 +1,3 @@
-cd ..
-
 echo "Benchmarking with unit_seqlen 128"
 python test_speedup.py --unit_seqlen 128 --nruns 15 --nwarmup 5
 
