@@ -72,18 +72,8 @@ if __name__ == "__main__":
     # Construct the bached q,k,v for flex_attention. shape = [B,H,S,D]
     q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
     k_padded = k.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
-    v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
-    
-    
-    tmpq_padded = torch.empty_like(q_padded)
-    
-    for i in range(batch_size):
-        start_index = i * unit_seqlen
-        end_index = start_index + unit_seqlen
-        tmpq_padded[i] = q[start_index:end_index].permute(1,0,2)
-    assert torch.allclose(q_padded, tmpq_padded), "q_padded and tmpq_padded are not the same."
-    
-    
+    v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)    
+
 
     # the following information is needed for our HBSAttention implementation. You don't need to change that, providing cu_q/k_seqlens and q/k_blocksize is enough.
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)

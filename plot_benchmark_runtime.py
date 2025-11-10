@@ -117,7 +117,6 @@ def plot_series(
         unit_seqlen, values, stds = zip(*data)
         unit_seqlen_arr = np.array(unit_seqlen)
         values_arr = np.array(values)
-        print("stds:", stds)
         stds_arr = np.array(stds)
         label = method.replace("_result", "")
         # Plot the mean curve
@@ -125,8 +124,8 @@ def plot_series(
         # Plot the std shaded region
         ax.fill_between(
             unit_seqlen_arr, 
-            values_arr - stds_arr, 
-            values_arr + stds_arr,
+            values_arr - 3 * stds_arr, 
+            values_arr + 3 * stds_arr,
             alpha=0.18
         )
 
