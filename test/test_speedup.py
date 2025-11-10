@@ -1,4 +1,9 @@
 import torch
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 from hbsattn import HBSAttention
 from hbsattn.reference import (
     hbsattn_reference_v1_base,
@@ -12,7 +17,7 @@ from hbsattn.utils import calculate_blocks
 from hbsattn.benchmark import benchmark
 import argparse
 import json
-import os 
+
 
 
 # this file is used to test the speedup of our HBSAttention implementation compared to the reference implementation.
