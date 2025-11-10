@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('--nruns', type=int, default=2)
     parser.add_argument('--nwarmup', type=int, default=1)
     parser.add_argument('--headdim', type=int, default=16)
+    parser.add_argument('--unit_seqlen', type=int, default=256)
     args = parser.parse_args()
     
     nruns = args.nruns
