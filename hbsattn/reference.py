@@ -283,3 +283,13 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
     return_attn_probs=False,
     )
     return out 
+
+
+def hbsattn_reference_v5_flexattn():
+    try:
+        from torch.nn.attention.flex_attention import flex_attention
+    except Exception as e:
+        print(f"Importing FlexAttention failed with error: {e}")
+        return None
+
+    flex_attention(query, key, value, score_mod=None, block_mask=None, scale=None, enable_gqa=False, return_lse=False, kernel_options=None, *, return_aux=None)

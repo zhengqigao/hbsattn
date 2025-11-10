@@ -49,36 +49,3 @@ def calculate_blocks(cu_seqlen: torch.Tensor, block_size: int) -> tuple[int, tor
         cu_num_block, # cu_num_block[batch_idx+1] - cu_num_block[batch_idx] = batch_num_block[batch_idx]
     )
 
-
-
-def check_block_mask(block_mask: torch.Tensor, cu_q_blocks: torch.Tensor, q_block_to_batch: torch.Tensor, cu_k_blocks: torch.Tensor, k_block_to_batch: torch.Tensor) -> bool:
-    """
-    check the validity of a given block mask. 
-    Args: 
-        block_mask: (nhead, num_q_block, num_k_block)
-        cu_q_blocks: (num_q_block + 1)
-        cu_k_blocks: (num_k_block + 1)
-    Returns:
-        bool: True if the block mask is valid, False otherwise.
-    """
-    assert block_mask.ndim == 3, "block_mask must be a 3D tensor, of the shape (nhead, num_q_block, num_k_block)."
-    
-    nhead, num_q_block, num_k_block = block_mask.shape
-    
-    assert max(q_block_to_batch) == max(k_block_to_batch), f"In varlength setting, q_block_to_batch indicates {max(q_block_to_batch)} samples, while k_block_to_batch indicates {max(k_block_to_batch)} samples."
-    
-    num_sample = max(q_block_to_batch) + 1
-    
-    # block mask can only 
-    
-    
-
-
-if __name__ == "__main__":
-    device = torch.cuda.current_device()
-    cu_seqlens = torch.tensor([0, 4, 7, 11], dtype=torch.int32, device=device)
-    block_size = 2
-    num_block, cu_block, block_to_batch = calculate_blocks(cu_seqlens, block_size)
-    print(num_block)
-    print(cu_block)
-    print(block_to_batch)
