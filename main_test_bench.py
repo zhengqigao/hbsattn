@@ -91,19 +91,21 @@ if __name__ == "__main__":
     #                 q_block_idx = i * (unit_seqlen//q_block_size) + t1
     #                 k_block_idx = j * (unit_seqlen//k_block_size) + t2
     #                 block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
-    # block_mask_hanlab_bsattn = torch.zeros(batch_size, nhead_k, max_k_seqlen//q_block_size, max_k_seqlen//k_block_size, device=device, dtype=torch.bool)
-    # for i in range(batch_size):
-    #     for j in range(nhead_k):
-    #         for t1 in range(block_mask_hanlab_bsattn.shape[2]):
-    #             for t2 in range(block_mask_hanlab_bsattn.shape[3]):
-    #                 if i * (unit_seqlen//q_block_size) <= t1 < (i + 1) * (unit_seqlen//q_block_size) and j * (unit_seqlen//k_block_size) < t2 < (j + 1) * (unit_seqlen//k_block_size):
-    #                     block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,t1 - i * (unit_seqlen//q_block_size),t2 - j * (unit_seqlen//k_block_size)]
+    block_mask_hanlab_bsattn = torch.zeros(batch_size, nhead_k, max_k_seqlen//q_block_size, max_k_seqlen//k_block_size, device=device, dtype=torch.bool)
+    for i in range(batch_size):
+        for j in range(nhead_k):
+            for t1 in range(block_mask_hanlab_bsattn.shape[2]):
+                for t2 in range(block_mask_hanlab_bsattn.shape[3]):
+                    q_block_idx = cu_num_q_block[i] + t1
+                    k_block_idx = cu_num_k_block[j] + t2
+                    block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
 
-    block_mask_hanlab_bsattn = block_mask.unsqueeze(0).repeat(batch_size, 1, 1, 1)
-    print("block_mask_hanlab_bsattn.shape", block_mask_hanlab_bsattn.shape)
-    print("q.shape", q.shape)
-    print("k.shape", k.shape)
-    print("v.shape", v.shape)
+    # block_mask_hanlab_bsattn = block_mask.unsqueeze(0).repeat(batch_size, 1, 1, 1)
+    # print("block_mask_hanlab_bsattn.shape", block_mask_hanlab_bsattn.shape)
+    # print("q.shape", q.shape)
+    # print("k.shape", k.shape)
+    # print("v.shape", v.shape)
+    
     # run once to get a golden reference
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
