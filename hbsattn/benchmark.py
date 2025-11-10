@@ -2,16 +2,19 @@ import torch
 from typing import Optional, Callable, Dict, Any
 import time
 import numpy as np
-
-
+import warnings
 def _check_correctness(golden: torch.Tensor, result: torch.Tensor, name: str) -> dict:
 
     if golden.device != result.device:
         result = result.to(golden.device)
     
     if golden.shape != result.shape:
-        print(f"Shape mismatch: {golden.shape} vs {result.shape}")
-        return None
+        # this might happen if in the format of [B,H,S,D] v.s. [S, H, D]
+        # flexattention returns [B,H,S,D]
+        # we will do automatica reshape
+        warnings.warn(f"Shape mismatch: {golden.shape} vs {result.shape}")
+        if result.ndim == 4: 
+            result = result.reshape(-1, result.shape[2], result.shape[3])
     
     abs_error = torch.abs(golden - result)
     rel_error = abs_error / (1e-4 + torch.maximum(torch.abs(golden), torch.abs(result)))

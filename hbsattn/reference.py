@@ -316,6 +316,7 @@ def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, block_mask, bloc
     
     # Use flex_attention with the optimized block mask
     output = flex_attention(q_padded, k_padded, v_padded, block_mask=flex_block_mask, scale=scale)
-    # reshape to [Seqlen, nhead, headdim] for consistency
-    output = output.reshape(-1, H, D)
+    
+    # # reshape to [Seqlen, nhead, headdim] for consistency
+    # output = output.reshape(-1, H, D)
     return output 
