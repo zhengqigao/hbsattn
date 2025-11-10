@@ -93,14 +93,14 @@ if __name__ == "__main__":
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
     
     # Convert the block_mask to the format for hanlab_block_sparse_attn.
-    block_mask_hanlab_bsattn = torch.empty(batch_size, nhead_k, unit_seqlen//q_block_size, unit_seqlen//k_block_size, device=device, dtype=torch.bool)
+    block_mask_batched = torch.empty(batch_size, nhead_k, unit_seqlen//q_block_size, unit_seqlen//k_block_size, device=device, dtype=torch.bool)
     for i in range(batch_size):
         for j in range(nhead_k):
             for t1 in range(unit_seqlen//q_block_size):
                 for t2 in range(unit_seqlen//k_block_size):
                     q_block_idx = i * (unit_seqlen//q_block_size) + t1
                     k_block_idx = i * (unit_seqlen//k_block_size) + t2
-                    block_mask_hanlab_bsattn[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
+                    block_mask_batched[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
 
     
     # run once to get a golden reference
@@ -121,38 +121,51 @@ if __name__ == "__main__":
     #     'name': 'hbsattn_reference_v2_with_pytorch'
     # }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    our_auto_result = benchmark({
+
+    try:
+        our_auto_result = benchmark({
+                'golden': golden_ref_v1,
+                'n_runs': nruns,
+                'n_warmup': nwarmup,
+                'name': 'HBSAttention_auto_tilesize'
+        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    except Exception as e:
+        print(f"Error benchmarking auto tilesize: {e}")
+        our_auto_result = {}
+
+    try:
+        our_fix_result = benchmark({
             'golden': golden_ref_v1,
             'n_runs': nruns,
             'n_warmup': nwarmup,
-            'name': 'HBSAttention_auto_tilesize'
-    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+            'name': 'HBSAttention_fix_tilesize'
+        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    except Exception as e:
+        print(f"Error benchmarking fix tilesize: {e}")
+        our_fix_result = {}
 
-    our_fix_result = benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'HBSAttention_fix_tilesize'
-    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    try:
+        v4_result = benchmark({
+                    'golden': golden_ref_v1,
+                    'n_runs': nruns,
+                    'n_warmup': nwarmup,
+                    'name': 'HBSAttention_hanlab_bsattn'
+        }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
+    except Exception as e:
+        print(f"Error benchmarking hanlab bsattn: {e}")
+        v4_result = {}
 
-    v4_result = benchmark({
-                'golden': golden_ref_v1,
-                'n_runs': nruns,
-                'n_warmup': nwarmup,
-                'name': 'HBSAttention_hanlab_bsattn'
-    }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, causal, softmax_scale)
+    try:
+        v5_result = benchmark({
+                    'golden': golden_ref_v1,
+                    'n_runs': nruns,
+                    'n_warmup': nwarmup,
+                    'name': 'HBSAttention_flexattn'
+        }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, block_mask_batched, q_block_size, causal, softmax_scale)
+    except Exception as e:
+        print(f"Error benchmarking flexattention: {e}")
+        v5_result = {}
 
-
-    v5_result = benchmark({
-                'golden': golden_ref_v1,
-                'n_runs': nruns,
-                'n_warmup': nwarmup,
-                'name': 'HBSAttention_flexattn'
-    }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, block_mask_hanlab_bsattn, q_block_size, causal, softmax_scale)
-    
-
-        
-    
     # if save_benchmark_to_file is not empty, save the benchmark results to a file.
     if args.save_benchmark_to_file:
         # Save all benchmark results in a dict for one-shot dump
