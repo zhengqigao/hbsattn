@@ -1,6 +1,13 @@
 import torch
 from hbsattn import HBSAttention
-from hbsattn.reference import hbsattn_reference_v1_base, hbsattn_reference_v2_with_pytorch, hbsattn_reference_v3_qkallfirst, hbsattn_reference_v4_hanlab_bsattn
+from hbsattn.reference import (
+    hbsattn_reference_v1_base,
+    hbsattn_reference_v2_with_pytorch,
+    hbsattn_reference_v3_qkallfirst,
+    hbsattn_reference_v4_hanlab_bsattn,
+    hbsattn_reference_v5_flexattn,
+)
+
 from hbsattn.utils import calculate_blocks
 from hbsattn.benchmark import benchmark
 import argparse
@@ -56,6 +63,11 @@ if __name__ == "__main__":
     q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
     v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+
+    # Construct the bached q,k,v for flex_attention.
+    q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
+    k_padded = k.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
+    v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
 
     # the following information is needed for our HBSAttention implementation. You don't need to change that, providing cu_q/k_seqlens and q/k_blocksize is enough.
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
@@ -127,5 +139,9 @@ if __name__ == "__main__":
     }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, causal, softmax_scale)
 
 
-    
-    
+    benchmark({
+                'golden': golden_ref_v1,
+                'n_runs': nruns,
+                'n_warmup': nwarmup,
+                'name': 'HBSAttention_flexattn'
+    }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, score_mod = None, block_mask_hanlab_bsattn, scale = softmax_scale, enable_gqa = False)

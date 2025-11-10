@@ -6,6 +6,18 @@ from hbsattn.utils import calculate_blocks
 from torch.nn.functional import scaled_dot_product_attention
 import warnings
 
+try:
+    from block_sparse_attn import block_sparse_attn_func
+except Exception as e:
+    print(f"Importing block_sparse_attn failed with error: {e}")
+    hanlab_block_sparse_attn_func = None
+
+try:
+    from torch.nn.attention.flex_attention import flex_attention
+except Exception as e:
+    print(f"Importing FlexAttention failed with error: {e}")
+    flex_attention = None
+
 def hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
     
     if num_q_block is None or cu_q_block is None or q_block_to_batch is None or cu_num_q_block is None:
@@ -252,17 +264,10 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
 
 
 def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, causal, softmax_scale,):
-    try:
-        from block_sparse_attn import block_sparse_attn_func
-    except Exception as e:
-        print(f"Importaning block_sparse_attn failed with error: {e}")
-        return None
-
+    
     nhead_q = q.shape[1]
     max_seqlen_q = torch.max(cu_q_seqlens[1:] - cu_q_seqlens[:-1]).item()
-    max_seqlen_k = torch.max(cu_k_seqlens[1:] - cu_k_seqlens[:-1]).item()
-    batch_size = len(cu_q_seqlens) - 1
-    
+    max_seqlen_k = torch.max(cu_k_seqlens[1:] - cu_k_seqlens[:-1]).item()    
 
     out = block_sparse_attn_func(
     q, 
@@ -285,11 +290,6 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
     return out 
 
 
-def hbsattn_reference_v5_flexattn():
-    try:
-        from torch.nn.attention.flex_attention import flex_attention
-    except Exception as e:
-        print(f"Importing FlexAttention failed with error: {e}")
-        return None
-
-    flex_attention(query, key, value, score_mod=None, block_mask=None, scale=None, enable_gqa=False, return_lse=False, kernel_options=None, *, return_aux=None)
+def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, score_mod, block_mask, scale, enable_gqa):
+    out = flex_attention(q_padded, k_padded, v_padded, score_mod, block_mask, scale=scale, enable_gqa=enable_gqa)
+    return out 
