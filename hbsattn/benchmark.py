@@ -93,7 +93,6 @@ def benchmark(
 
     
     return {
-        'result': result,
         'runtime_mean': mean_time,
         'runtime_std': std_time,
         'runtime_min': min_time,
