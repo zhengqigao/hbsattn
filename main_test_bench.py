@@ -161,6 +161,16 @@ if __name__ == "__main__":
         
     except Exception as e:
         print("Error in HBSAttention_fix_tilesize", e)
+        
+    try:
+        benchmark({
+            'golden': golden_ref_v1,
+            'n_runs': nruns,
+            'n_warmup': nwarmup,
+            'name': 'HBSAttention_hanlab_bsattn'
+        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    except Exception as e:
+        print("Error in HBSAttention_hanlab_bsattn", e)
 
     
     
