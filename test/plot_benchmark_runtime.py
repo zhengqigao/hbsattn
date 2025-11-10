@@ -76,7 +76,7 @@ def collect_series_with_std(
             if not isinstance(value, dict):
                 continue
             metric_value = value.get(metric, None)
-            metric_std_value = value.get(metric_std, 0.0)
+            metric_std_value = value.get(metric_std, None)
             series.setdefault(key, []).append((unit_seqlen, metric_value, metric_std_value))
 
     # Sort each series by unit_seqlen for nicer plotting
@@ -107,17 +107,14 @@ def plot_series(
     for method, data in sorted(series.items()):
         unit_seqlen, values, stds = zip(*data)
         unit_seqlen_arr = np.array(unit_seqlen)
-        values_arr = np.array(values)
-        stds_arr = np.array(stds)
-        label = method.replace("_result", "")
         # Plot the mean curve
-        ax.plot(unit_seqlen_arr, values_arr, marker="o", label=label)
         # Plot the std shaded region
         # To handle possible None values (meaning missing metrics) gracefully, we mask out such points for shading.
         values_valid = np.array([v if v is not None else np.nan for v in values])
         stds_valid = np.array([s if (v is not None and s is not None) else np.nan for v, s in zip(values, stds)])
         # Only plot fill_between for points that have numeric values
         not_nan = ~np.isnan(values_valid) & ~np.isnan(stds_valid)
+        ax.plot(unit_seqlen_arr[not_nan], values_valid[not_nan], marker="o", label=method)
         if np.any(not_nan):
             ax.fill_between(
                 unit_seqlen_arr[not_nan],

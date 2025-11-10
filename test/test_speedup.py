@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--nheads', type=int, default=32)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--save_benchmark_to_file', type=str, default = './test/benchmark_all_results.json')
+    parser.add_argument('--sparse_ratio', type=float, default=0.3)
     args = parser.parse_args()
     
     nruns = args.nruns
@@ -80,7 +81,7 @@ if __name__ == "__main__":
 
 
     # Important: note if block_mask is not set properly, then it is possible for a q block not to attend to any k block, and cause the output to be NaN. When this happen, our implementation will return 0 instead of NaN (this is also what flashattn does when seq_len_q != seqlen_k).
-    block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
+    block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 1 - args.sparse_ratio).to(torch.bool)
     for i in range(num_q_block):
         batch_idx = q_block_to_batch[i]
         first_k_block_idx_in_the_same_batch = None
