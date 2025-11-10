@@ -117,19 +117,19 @@ if __name__ == "__main__":
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     # benchmarking all methods start here
-    v1_result = benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v1_base'
-    }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # v1_result = benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'hbsattn_reference_v1_base'
+    # }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    v2_result = benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v2_with_pytorch'
-    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # v2_result = benchmark({
+    #     'golden': golden_ref_v1,
+    #     'n_runs': nruns,
+    #     'n_warmup': nwarmup,
+    #     'name': 'hbsattn_reference_v2_with_pytorch'
+    # }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     our_auto_result = benchmark({
             'golden': golden_ref_v1,
@@ -168,8 +168,8 @@ if __name__ == "__main__":
         # Save all benchmark results in a dict for one-shot dump
         all_results = {
             "hbsattn(our fix)": our_fix_result,
-            "pytorch ref 1": v1_result,
-            "pytorch ref 2": v2_result,
+            # "pytorch ref 1": v1_result,
+            # "pytorch ref 2": v2_result,
             "hbsattn(our auto)": our_auto_result,
             "hanlab_block-sparse-attn": v4_result,
             "flexattention": v5_result,
