@@ -252,4 +252,32 @@ def hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_m
 
 
 def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block =None , cu_q_block = None, q_block_to_batch = None, cu_num_q_block = None, num_k_block = None, cu_k_block = None, k_block_to_batch = None, cu_num_k_block = None):
-    pass
+    try:
+        from block_sparse_attn import block_sparse_attn_func
+    except Exception as e:
+        print(f"Importaning block_sparse_attn failed with error: {e}")
+        return None
+
+    nhead_q = q.shape[1]
+    max_seqlen_q = torch.max(cu_q_seqlens[1:] - cu_q_seqlens[:-1]).item()
+    max_seqlen_k = torch.max(cu_k_seqlens[1:] - cu_k_seqlens[:-1]).item()
+    
+    out = block_sparse_attn_func(
+    q, 
+    k,
+    v,
+    cu_q_seqlens, 
+    cu_k_seqlens,
+    head_mask_type = torch.ones(nhead_q, dtype=torch.int32, device=q.device),
+    streaming_info = None,
+    base_blockmask = block_mask,
+    max_seqlen_q_ = max_seqlen_q, 
+    max_seqlen_k_ = max_seqlen_k,
+    p_dropout = 0.0,
+    deterministic=False,
+    softmax_scale=None,
+    is_causal=False,
+    exact_streaming=False,
+    return_attn_probs=False,
+    )
+    return out 

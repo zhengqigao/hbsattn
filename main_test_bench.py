@@ -1,6 +1,6 @@
 import torch
 from hbsattn import HBSAttention
-from hbsattn.reference import hbsattn_reference_v1_base, hbsattn_reference_v2_with_pytorch, hbsattn_reference_v3_qkallfirst
+from hbsattn.reference import hbsattn_reference_v1_base, hbsattn_reference_v2_with_pytorch, hbsattn_reference_v3_qkallfirst, hbsattn_reference_v4_hanlab_bsattn
 from hbsattn.utils import calculate_blocks
 from hbsattn.benchmark import benchmark
 import argparse
@@ -85,10 +85,12 @@ if __name__ == "__main__":
 
     golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
+    golden_ref_v4 = hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
     print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
     print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
-    
+    print("golden_ref_v4", golden_ref_v4, torch.isnan(golden_ref_v4).any())
 
     out_auto_tilesize = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     print("out_auto_tilesize", out_auto_tilesize, torch.isnan(out_auto_tilesize).any())
