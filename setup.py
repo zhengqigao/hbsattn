@@ -10,6 +10,7 @@ setup(
     install_requires=[
         "torch",
         "numpy",
+        "triton",
     ],
     extras_require={
         "dev": ["pytest"],
