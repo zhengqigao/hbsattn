@@ -278,8 +278,8 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
     max_seqlen_k_ = max_seqlen_k,
     p_dropout = 0.0,
     deterministic=False,
-    softmax_scale=None,
-    is_causal=False,
+    softmax_scale=softmax_scale,
+    is_causal=causal,
     exact_streaming=False,
     return_attn_probs=False,
     )
