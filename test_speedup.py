@@ -166,6 +166,8 @@ if __name__ == "__main__":
             "v4_result": v4_result,
             "v5_result": v5_result,
         }
-        with open(args.save_benchmark_to_file, 'w') as f:
-            json.dump(all_results, f, indent=4)
-        print(f"Benchmark results saved to {args.save_benchmark_to_file}")
+        # Append all_results as a line-delimited JSON object to the file
+        with open(args.save_benchmark_to_file, 'a') as f:
+            f.write(json.dumps(all_results, indent=4))
+            f.write('\n')
+        print(f"Benchmark results appended to {args.save_benchmark_to_file}")
