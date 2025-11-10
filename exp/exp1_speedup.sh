@@ -1,5 +1,8 @@
 cd ..
 
+python test_speedup.py --unit_seqlen 128 --nruns 15 --nwarmup 5
+python test_speedup.py --unit_seqlen 256 --nruns 15 --nwarmup 5
+python test_speedup.py --unit_seqlen 512 --nruns 15 --nwarmup 5
 python test_speedup.py --unit_seqlen 1024 --nruns 15 --nwarmup 5
 python test_speedup.py --unit_seqlen 2048 --nruns 15 --nwarmup 5
 python test_speedup.py --unit_seqlen 4096 --nruns 15 --nwarmup 5
