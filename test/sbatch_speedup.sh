@@ -13,6 +13,10 @@
 # $1: sparse_ratio，默认 0.7
 # $2: causal（true/false），默认 true
 
+
+module load cuda
+conda activate zq_torch 
+
 sparse_ratio=${1:-0.7}
 causal_flag=${2:-true}
 
