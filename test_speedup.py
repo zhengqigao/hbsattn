@@ -126,7 +126,14 @@ if __name__ == "__main__":
             'n_warmup': nwarmup,
             'name': 'HBSAttention_auto_tilesize'
     }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
+
+    our_result = benchmark({
+        'golden': golden_ref_v1,
+        'n_runs': nruns,
+        'n_warmup': nwarmup,
+        'name': 'HBSAttention_fix_tilesize'
+    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+
     v4_result = benchmark({
                 'golden': golden_ref_v1,
                 'n_runs': nruns,
@@ -142,12 +149,7 @@ if __name__ == "__main__":
                 'name': 'HBSAttention_flexattn'
     }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, block_mask_hanlab_bsattn, q_block_size, causal, softmax_scale)
     
-    our_result = benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'HBSAttention_fix_tilesize'
-    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+
         
     
     # if save_benchmark_to_file is not empty, save the benchmark results to a file.
