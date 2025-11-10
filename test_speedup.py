@@ -73,6 +73,15 @@ if __name__ == "__main__":
     q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
     k_padded = k.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
     v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
+    
+    
+    tmpq_padded = torch.empty_like(q_padded)
+    
+    for i in range(batch_size):
+        tmpq_padded[i] = q[i*unit_seqlen:(i+1)*unit_seqlen]
+    assert torch.allclose(q_padded, tmpq_padded), "q_padded and tmpq_padded are not the same."
+    
+    
 
     # the following information is needed for our HBSAttention implementation. You don't need to change that, providing cu_q/k_seqlens and q/k_blocksize is enough.
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
