@@ -131,14 +131,14 @@ if __name__ == "__main__":
         'name': 'hbsattn_reference_v2_with_pytorch'
     }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    v3_result = benchmark({
+    our_auto_result = benchmark({
             'golden': golden_ref_v1,
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_auto_tilesize'
     }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    our_result = benchmark({
+    our_fix_result = benchmark({
         'golden': golden_ref_v1,
         'n_runs': nruns,
         'n_warmup': nwarmup,
@@ -167,12 +167,12 @@ if __name__ == "__main__":
     if args.save_benchmark_to_file:
         # Save all benchmark results in a dict for one-shot dump
         all_results = {
-            "our_result": our_result,
-            "v1_result": v1_result,
-            "v2_result": v2_result,
-            "v3_result": v3_result,
-            "v4_result": v4_result,
-            "v5_result": v5_result,
+            "hbsattn(our fix)": our_fix_result,
+            "pytorch ref 1": v1_result,
+            "pytorch ref 2": v2_result,
+            "hbsattn(our auto)": our_auto_result,
+            "hanlab_block-sparse-attn": v4_result,
+            "flexattention": v5_result,
             "unit_seqlen": unit_seqlen,
             "headdim": headdim,
             "nhead_q": nhead_q,
