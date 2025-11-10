@@ -173,6 +173,9 @@ if __name__ == "__main__":
             "v3_result": v3_result,
             "v4_result": v4_result,
             "v5_result": v5_result,
+            "unit_seqlen": unit_seqlen,
+            "headdim": headdim,
+            "nhead_q": nhead_q,
         }
         # Append all_results as a line-delimited JSON object to the file
         with open(args.save_benchmark_to_file, 'a') as f:
