@@ -153,15 +153,21 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error benchmarking hanlab bsattn: {e}")
         v4_result = {}
-
-    del q,k,v  # they won't be used from now on
-    torch.cuda.empty_cache()
     
     try:
         # Construct the bached q,k,v for flex_attention. shape = [B,H,S,D]
         q_padded = q.reshape(batch_size, unit_seqlen, nhead_q, headdim).permute(0,2,1,3)
+        del q
+        torch.cuda.empty_cache()
+        
         k_padded = k.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)
+        del k
+        torch.cuda.empty_cache()
+        
         v_padded = v.reshape(batch_size, unit_seqlen, nhead_k, headdim).permute(0,2,1,3)   
+        del v
+        torch.cuda.empty_cache()
+        
         v5_result = benchmark({
                     'golden': golden_ref_v1,
                     'n_runs': nruns,
