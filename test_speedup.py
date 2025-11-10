@@ -33,11 +33,11 @@ if __name__ == "__main__":
     parser.add_argument('--softmax_scale', type=float, default=None)
     parser.add_argument('--nruns', type=int, default=2)
     parser.add_argument('--nwarmup', type=int, default=1)
-    parser.add_argument('--headdim', type=int, default=16)
+    parser.add_argument('--headdim', type=int, default=128)
     parser.add_argument('--unit_seqlen', type=int, default=256)
-    parser.add_argument('--nheads', type=int, default=1)
+    parser.add_argument('--nheads', type=int, default=32)
     parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--save_benchmark_to_file', type=str, default = './results/benchmark_results.json')
+    parser.add_argument('--save_benchmark_to_file', type=str, default = 'benchmark_results.json')
     args = parser.parse_args()
     
     nruns = args.nruns
@@ -155,8 +155,6 @@ if __name__ == "__main__":
     # if save_benchmark_to_file is not empty, save the benchmark results to a file.
     print(f"ss,", args.save_benchmark_to_file)
     if args.save_benchmark_to_file:
-        if not os.path.exists(args.save_benchmark_to_file):
-            os.makedirs(args.save_benchmark_to_file)
         # Save all benchmark results in a dict for one-shot dump
         all_results = {
             "our_result": our_result,
