@@ -73,20 +73,11 @@ def collect_series_with_std(
         if unit_seqlen is None:
             raise KeyError("Each record must include a 'unit_seqlen' field.")
         for key, value in record.items():
-            # Skip scalar metadata fields (e.g. unit_seqlen, headdim, nhead_q)
             if not isinstance(value, dict):
                 continue
-            if metric not in value:
-                raise KeyError(
-                    f"Metric '{metric}' not found for result '{key}'. "
-                    f"Available keys: {list(value.keys())}"
-                )
-            if metric_std not in value:
-                raise KeyError(
-                    f"Standard deviation field '{metric_std}' not found in result '{key}'. "
-                    f"Available keys: {list(value.keys())}"
-                )
-            series.setdefault(key, []).append((unit_seqlen, value[metric], value[metric_std]))
+            metric_value = value.get(metric, None)
+            metric_std_value = value.get(metric_std, 0.0)
+            series.setdefault(key, []).append((unit_seqlen, metric_value, metric_std_value))
 
     # Sort each series by unit_seqlen for nicer plotting
     for data in series.values():
@@ -122,12 +113,18 @@ def plot_series(
         # Plot the mean curve
         ax.plot(unit_seqlen_arr, values_arr, marker="o", label=label)
         # Plot the std shaded region
-        ax.fill_between(
-            unit_seqlen_arr, 
-            values_arr - 3 * stds_arr, 
-            values_arr + 3 * stds_arr,
-            alpha=0.18
-        )
+        # To handle possible None values (meaning missing metrics) gracefully, we mask out such points for shading.
+        values_valid = np.array([v if v is not None else np.nan for v in values])
+        stds_valid = np.array([s if (v is not None and s is not None) else np.nan for v, s in zip(values, stds)])
+        # Only plot fill_between for points that have numeric values
+        not_nan = ~np.isnan(values_valid) & ~np.isnan(stds_valid)
+        if np.any(not_nan):
+            ax.fill_between(
+                unit_seqlen_arr[not_nan],
+                (values_valid[not_nan] - 3 * stds_valid[not_nan]),
+                (values_valid[not_nan] + 3 * stds_valid[not_nan]),
+                alpha=0.18
+            )
 
     ax.set_xlabel("unit_seqlen (log2 scale)")
     ax.set_ylabel(metric)

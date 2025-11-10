@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument('--unit_seqlen', type=int, default=256)
     parser.add_argument('--nheads', type=int, default=32)
     parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--save_benchmark_to_file', type=str, default = './benchmark_results.json')
+    parser.add_argument('--save_benchmark_to_file', type=str, default = './test/benchmark_all_results.json')
     args = parser.parse_args()
     
     nruns = args.nruns
