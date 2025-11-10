@@ -94,10 +94,10 @@ def benchmark(
     
     return {
         'result': result,
-        'time_ms': mean_time,
-        'time_std': std_time,
-        'time_min': min_time,
-        'time_max': max_time,
+        'runtime_mean': mean_time,
+        'runtime_std': std_time,
+        'runtime_min': min_time,
+        'runtime_max': max_time,
         'all_times': times.tolist(),
         'error': error_info
     }

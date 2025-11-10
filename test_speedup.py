@@ -11,6 +11,9 @@ from hbsattn.reference import (
 from hbsattn.utils import calculate_blocks
 from hbsattn.benchmark import benchmark
 import argparse
+import json
+import os 
+
 
 # this file is used to test the speedup of our HBSAttention implementation compared to the reference implementation.
 # We mainly compared with three reference implementations: 
@@ -34,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument('--unit_seqlen', type=int, default=256)
     parser.add_argument('--nheads', type=int, default=1)
     parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--save_benchmark_to_file', type=str, default = 'benchmark_results.json')
     args = parser.parse_args()
     
     nruns = args.nruns
@@ -102,37 +106,28 @@ if __name__ == "__main__":
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     # benchmarking all methods start here
-    benchmark({
+    v1_result = benchmark({
         'golden': golden_ref_v1,
         'n_runs': nruns,
         'n_warmup': nwarmup,
         'name': 'hbsattn_reference_v1_base'
     }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     
-    benchmark({
+    v2_result = benchmark({
         'golden': golden_ref_v1,
         'n_runs': nruns,
         'n_warmup': nwarmup,
         'name': 'hbsattn_reference_v2_with_pytorch'
     }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    benchmark({
+    v3_result = benchmark({
             'golden': golden_ref_v1,
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_auto_tilesize'
     }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-
-
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'HBSAttention_fix_tilesize'
-    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-        
     
-    benchmark({
+    v4_result = benchmark({
                 'golden': golden_ref_v1,
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
@@ -140,9 +135,30 @@ if __name__ == "__main__":
     }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, causal, softmax_scale)
 
 
-    benchmark({
+    v5_result = benchmark({
                 'golden': golden_ref_v1,
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_flexattn'
     }, hbsattn_reference_v5_flexattn, q_padded, k_padded, v_padded, block_mask_hanlab_bsattn, q_block_size, causal, softmax_scale)
+    
+    our_result = benchmark({
+        'golden': golden_ref_v1,
+        'n_runs': nruns,
+        'n_warmup': nwarmup,
+        'name': 'HBSAttention_fix_tilesize'
+    }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+        
+    
+    # if save_benchmark_to_file is not empty, save the benchmark results to a file.
+    if args.save_benchmark_to_file != '':
+        # Ensure the output directory exists
+        os.makedirs(os.path.dirname(args.save_benchmark_to_file), exist_ok=True)
+        with open(args.save_benchmark_to_file, 'w') as f:
+            json.dump(our_result, f, indent=4)
+            json.dump(v1_result, f, indent=4)
+            json.dump(v2_result, f, indent=4)
+            json.dump(v3_result, f, indent=4)
+            json.dump(v4_result, f, indent=4)
+            json.dump(v5_result, f, indent=4)
+        print(f"Benchmark results saved to {args.save_benchmark_to_file}")
