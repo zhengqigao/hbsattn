@@ -130,7 +130,7 @@ if __name__ == "__main__":
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_hanlab_bsattn'
-    }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn,  block_mask, causal, softmax_scale)
+    }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, causal, softmax_scale)
 
 
     
