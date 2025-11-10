@@ -12,9 +12,10 @@ def _check_correctness(golden: torch.Tensor, result: torch.Tensor, name: str) ->
         # this might happen if in the format of [B,H,S,D] v.s. [S, H, D]
         # flexattention returns [B,H,S,D]
         # we will do automatica reshape
-        warnings.warn(f"Shape mismatch: {golden.shape} vs {result.shape}")
+        warnings.warn(f"Shape mismatch: golden shape = {golden.shape} vs result shape = {result.shape}")
         if result.ndim == 4: 
-            result = result.permute(0,2,1,3).reshape(-1, result.shape[2], result.shape[3])
+            b, h, s, d = result.shape
+            result = result.permute(0,2,1,3).reshape(-1, h, d)
         print("now result.shape:", result.shape)
     abs_error = torch.abs(golden - result)
     rel_error = abs_error / (1e-4 + torch.maximum(torch.abs(golden), torch.abs(result)))
