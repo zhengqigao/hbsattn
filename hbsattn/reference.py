@@ -303,7 +303,7 @@ def hbsattn_reference_v5_flexattn(q_padded, k_padded, v_padded, block_mask, bloc
     
     if causal:
         def mask_mod_causal(b, h, q_idx, kv_idx):
-            return (q_idx >= kv_idx) and block_mask[b, h, q_idx // block_size, kv_idx // block_size]
+            return (q_idx >= kv_idx) & block_mask[b, h, q_idx // block_size, kv_idx // block_size]
 
         flex_block_mask = create_block_mask(
             mask_mod_causal,
