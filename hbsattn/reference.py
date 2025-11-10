@@ -261,6 +261,7 @@ def hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, bloc
     nhead_q = q.shape[1]
     max_seqlen_q = torch.max(cu_q_seqlens[1:] - cu_q_seqlens[:-1]).item()
     max_seqlen_k = torch.max(cu_k_seqlens[1:] - cu_k_seqlens[:-1]).item()
+    batch_size = len(cu_q_seqlens) - 1
     
     print(block_mask.shape)
     print(q.shape)
