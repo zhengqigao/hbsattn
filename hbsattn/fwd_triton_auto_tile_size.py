@@ -93,8 +93,8 @@ def _fwd_kernel(
             BLOCK_N: tl.constexpr,
             BLOCK_DIM: tl.constexpr,
             EVEN_HEADDIM: tl.constexpr,
-            EVEN_SEQK_BLOCK: tl.constexpr,
             EVEN_SEQQ_BLOCK: tl.constexpr,
+            EVEN_SEQK_BLOCK: tl.constexpr,
         ):
             off_dim = tl.arange(0, BLOCK_DIM)
             
@@ -271,8 +271,8 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
     lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     
-    even_seqk_block = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0)
-    even_seqq_block = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0)
+    even_seqk_block = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
+    even_seqq_block = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
 
     
@@ -302,8 +302,8 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         # BLOCK_N=BLOCK_N,
         BLOCK_DIM=BLOCK_DIM,
         EVEN_HEADDIM=even_headdim,
-        EVEN_SEQK_BLOCK=even_seqk_block,
         EVEN_SEQQ_BLOCK=even_seqq_block,
+        EVEN_SEQK_BLOCK=even_seqk_block,
     )
     
     best_cfg = _fwd_kernel.best_config
