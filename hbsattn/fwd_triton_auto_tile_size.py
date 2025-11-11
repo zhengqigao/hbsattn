@@ -108,14 +108,19 @@ def _fwd_kernel(
             num_k_tile_in_block = k_block_size // BLOCK_N
             
             batch_idx = tl.load(q_block_to_batch + off_q_block)
-            batch_q_start = tl.load(cu_q_seqlens + batch_idx)
-            batch_q_end = tl.load(cu_q_seqlens + batch_idx + 1)
-            batch_k_start = tl.load(cu_k_seqlens + batch_idx)
-            batch_k_end = tl.load(cu_k_seqlens + batch_idx + 1)
+            cu_q_ptr = cu_q_seqlens + batch_idx
+            cu_k_ptr = cu_k_seqlens + batch_idx
+            batch_q_start_end = tl.load(cu_q_ptr + tl.arange(0, 2))
+            batch_k_start_end = tl.load(cu_k_ptr + tl.arange(0, 2))
+            batch_q_start = batch_q_start_end[0]
+            batch_q_end = batch_q_start_end[1]
+            batch_k_start = batch_k_start_end[0]
+            batch_k_end = batch_k_start_end[1]
+            # batch_q_start = tl.load(cu_q_seqlens + batch_idx)
+            # batch_q_end = tl.load(cu_q_seqlens + batch_idx + 1)
+            # batch_k_start = tl.load(cu_k_seqlens + batch_idx)
+            # batch_k_end = tl.load(cu_k_seqlens + batch_idx + 1)
             offset = batch_k_end - batch_k_start - (batch_q_end - batch_q_start)
-            
-            num_q_tile_in_batch = tl.cdiv(batch_q_end - batch_q_start, BLOCK_M)
-            num_k_tile_in_batch = tl.cdiv(batch_k_end - batch_k_start, BLOCK_N)
             
             block_q_start = tl.load(cu_q_block + off_q_block)
             start_m = block_q_start + off_q_innertile * BLOCK_M
@@ -132,6 +137,7 @@ def _fwd_kernel(
                 else:
                     q_block = tl.load(q_ptr, mask=off_dim[None, :] < headdim, other=0.0)
             else:     
+                num_q_tile_in_batch = tl.cdiv(batch_q_end - batch_q_start, BLOCK_M)
                 num_q_block_start = tl.load(cu_num_q_block + batch_idx)
                 is_last_q_inner_tile_in_batch = (off_q_innertile + (off_q_block - num_q_block_start) * num_q_tile_in_block == num_q_tile_in_batch - 1)
                 
@@ -179,6 +185,7 @@ def _fwd_kernel(
                                         mask = off_dim[:, None] < headdim, 
                                         other=0.0)
                         else:
+                            num_k_tile_in_batch = tl.cdiv(batch_k_end - batch_k_start, BLOCK_N)
                             is_last_k_inner_tile_in_batch = (off_k_innertile + (off_k_block - num_k_block_start) * num_k_tile_in_block == num_k_tile_in_batch - 1)
 
                             if is_last_k_inner_tile_in_batch:
