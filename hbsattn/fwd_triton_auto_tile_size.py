@@ -303,7 +303,7 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         BLOCK_DIM=BLOCK_DIM,
         EVEN_HEADDIM=even_headdim,
         EVEN_SEQK_BLOCK=even_seqk_block,
-        EVEN_SEQK_BLOCK=even_seqq_block,
+        EVEN_SEQQ_BLOCK=even_seqq_block,
     )
     
     best_cfg = _fwd_kernel.best_config
