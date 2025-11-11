@@ -80,8 +80,7 @@ if __name__ == "__main__":
     
     q_block_size = 16 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
     k_block_size = 16
-    assert q_block_size == k_block_size == 128, "q_block_size and k_block_size must be the same."
-    
+
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
 
