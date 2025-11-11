@@ -54,17 +54,17 @@ def get_autotune_configs(q_block_size, k_block_size):
 # BLOCK_M = 16, 32, ..., 2 ** get_two_in_factorization(q_block_size)
 # BLOCK_N = 16, 32, ..., 2 ** get_two_in_factorization(k_block_size)
 
-# @triton.autotune(
-#     configs=[
-#         triton.Config({"BLOCK_M": 16, "BLOCK_N": 16}, num_warps=4, num_stages=2),
-#         triton.Config({"BLOCK_M": 32, "BLOCK_N": 16}, num_warps=4, num_stages=2),
-#         triton.Config({"BLOCK_M": 32, "BLOCK_N": 32}, num_warps=8, num_stages=2),
-#         triton.Config({"BLOCK_M": 64, "BLOCK_N": 64}, num_warps=8, num_stages=2),
-#         triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=2),
-#         triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=2),
-#     ],
-#     key=['q_block_size', 'k_block_size']
-# )
+@triton.autotune(
+    configs=[
+        triton.Config({"BLOCK_M": 16, "BLOCK_N": 16}, num_warps=4, num_stages=2),
+        triton.Config({"BLOCK_M": 32, "BLOCK_N": 16}, num_warps=4, num_stages=2),
+        triton.Config({"BLOCK_M": 32, "BLOCK_N": 32}, num_warps=8, num_stages=2),
+        triton.Config({"BLOCK_M": 64, "BLOCK_N": 64}, num_warps=8, num_stages=2),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=2),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=2),
+    ],
+    key=['q_block_size', 'k_block_size']
+)
 @triton.jit
 def _fwd_kernel(
             q, k, v,
@@ -159,7 +159,7 @@ def _fwd_kernel(
                                         other=0.0)
                         
                         qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-                        qk += tl.dot(q_block, k_block, allow_tf32=False)
+                        qk += tl.dot(q_block, k_block) # allow_tf32=False
                         qk *= softmax_scale
                         
                         m_ij = tl.maximum(m_i, tl.max(qk, 1))
@@ -179,7 +179,7 @@ def _fwd_kernel(
                         acc = acc * alpha[:, None]
                         p = p.to(v.type.element_ty)
                         
-                        acc += tl.dot(p, v_block, allow_tf32=False)
+                        acc += tl.dot(p, v_block) #  allow_tf32=False
                         m_i = m_ij
 
             l_i = tl.where(l_i == 0, 1, l_i)
@@ -206,9 +206,9 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
     head_q_to_k_ratio = nhead_q // nhead_k
     
     # Verify block sizes are valid
-    BLOCK_M = 2 ** get_two_in_factorization(q_block_size) # 2 ** get_two_in_factorization(q_block_size)
-    BLOCK_N = 2 ** get_two_in_factorization(k_block_size)
-    assert BLOCK_M >= 16 and BLOCK_N >= 16, "q_block_size and k_block_size must be integer multiples of 16."
+    # BLOCK_M = 2 ** get_two_in_factorization(q_block_size) # 2 ** get_two_in_factorization(q_block_size)
+    # BLOCK_N = 2 ** get_two_in_factorization(k_block_size)
+    # assert BLOCK_M >= 16 and BLOCK_N >= 16, "q_block_size and k_block_size must be integer multiples of 16."
     
     BLOCK_DIM = max(triton.next_power_of_2(headdim), 16)
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
@@ -240,8 +240,8 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         headdim,
         q_block_size,
         k_block_size,
-        BLOCK_M=BLOCK_M,
-        BLOCK_N=BLOCK_N,
+        # BLOCK_M=BLOCK_M,
+        # BLOCK_N=BLOCK_N,
         BLOCK_DIM=BLOCK_DIM
     )
     return out
