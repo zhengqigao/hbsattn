@@ -104,11 +104,12 @@ def plot_series(
         # Only plot fill_between for points that have numeric values
         not_nan = ~np.isnan(values_valid) & ~np.isnan(stds_valid)
         ax.plot(unit_seqlen_arr[not_nan], values_valid[not_nan], marker="o", label=method)
+        print(f"method: {method}, values_valid: {values_valid[not_nan]}, stds_valid: {stds_valid[not_nan]}")
         if np.any(not_nan):
             ax.fill_between(
                 unit_seqlen_arr[not_nan],
-                (values_valid[not_nan] - 3 * stds_valid[not_nan]),
-                (values_valid[not_nan] + 3 * stds_valid[not_nan]),
+                (values_valid[not_nan] - stds_valid[not_nan]),
+                (values_valid[not_nan] + stds_valid[not_nan]),
                 alpha=0.18
             )
 
