@@ -87,6 +87,7 @@ def _fwd_kernel(
             BLOCK_N: tl.constexpr,
             BLOCK_DIM: tl.constexpr
         ):
+            tl.device_print(f"BLOCK_M: {BLOCK_M}, BLOCK_N: {BLOCK_N}")
             off_dim = tl.arange(0, BLOCK_DIM)
             
             off_head_q = tl.program_id(2)
