@@ -108,8 +108,8 @@ def _fwd_kernel(
             BLOCK_N: tl.constexpr,
             BLOCK_DIM: tl.constexpr,
             EVEN_HEADDIM: tl.constexpr,
-            EVEN_SEQQ_BLOCK: tl.constexpr,
-            EVEN_SEQK_BLOCK: tl.constexpr,
+            EVEN_SEQ_QBLOCK: tl.constexpr,
+            EVEN_SEQ_KBLOCK: tl.constexpr,
         ):
             off_dim = tl.arange(0, BLOCK_DIM)
             
@@ -138,7 +138,7 @@ def _fwd_kernel(
             off_m = start_m + tl.arange(0, BLOCK_M)
             q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
 
-            if EVEN_SEQQ_BLOCK:            
+            if EVEN_SEQ_QBLOCK:            
                 if EVEN_HEADDIM:
                     q_block = tl.load(q_ptr)
                 else:
@@ -180,7 +180,7 @@ def _fwd_kernel(
                         off_n = start_n + tl.arange(0, BLOCK_N)
                         is_last_k_inner_tile_in_batch = False # default to False
                         
-                        if EVEN_SEQK_BLOCK:
+                        if EVEN_SEQ_KBLOCK:
                             if EVEN_HEADDIM:
                                 k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d)
                                 v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d)
@@ -224,7 +224,7 @@ def _fwd_kernel(
                         if causal:
                             qk += tl.where(off_m[:, None] - batch_q_start + offset >= off_n[None, :] - batch_k_start, 0, float('-inf'))
                         
-                        if not EVEN_SEQK_BLOCK and is_last_k_inner_tile_in_batch: 
+                        if not EVEN_SEQ_KBLOCK and is_last_k_inner_tile_in_batch: 
                             qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
                         
                         p = tl.exp(qk)
@@ -245,7 +245,7 @@ def _fwd_kernel(
             
             off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
             out_ptr = out + off_o
-            if EVEN_SEQQ_BLOCK:
+            if EVEN_SEQ_QBLOCK:
                 if EVEN_HEADDIM:
                     tl.store(out_ptr, acc)
                 else:
@@ -257,7 +257,7 @@ def _fwd_kernel(
                     tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
 
             off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
-            if EVEN_SEQQ_BLOCK:
+            if EVEN_SEQ_QBLOCK:
                 tl.store(lse + off_lse, tl.log(l_i))
             else:
                 tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
@@ -285,10 +285,9 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
     lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     
-    even_seqk_block = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
-    even_seqq_block = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
+    EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
+    EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
-
     
     # Grid function uses META to get the autotuned BLOCK_M
     grid = lambda META: (num_q_block, triton.cdiv(q_block_size, META["BLOCK_M"]), nhead_q)
@@ -316,8 +315,8 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         # BLOCK_N=BLOCK_N,
         BLOCK_DIM=BLOCK_DIM,
         EVEN_HEADDIM=even_headdim,
-        EVEN_SEQQ_BLOCK=even_seqq_block,
-        EVEN_SEQK_BLOCK=even_seqk_block,
+        EVEN_SEQ_QBLOCK=EVEN_SEQ_QBLOCK,
+        EVEN_SEQ_KBLOCK=EVEN_SEQ_KBLOCK,
     )
     
     best_cfg = _fwd_kernel.best_config
