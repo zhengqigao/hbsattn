@@ -50,26 +50,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     ## TODO: add a logic here, read the args.save_benchmark_to_file, and if the unit_seqlen is already in the file, then do nothing and exit.
-    if os.path.exists(args.save_benchmark_to_file):
-        with open(args.save_benchmark_to_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line:  # 跳过空行
-                    continue
-                try:
-                    entry = json.loads(line)
-                    # 检查关键参数是否匹配
-                    if (entry.get('unit_seqlen') == args.unit_seqlen and
-                        # entry.get('headdim') == args.headdim and
-                        # entry.get('nhead_q') == args.nheads and
-                        # entry.get('causal') == args.causal and
-                        entry.get('sparse_ratio') == args.sparse_ratio):
-                        print(f"[INFO] Configuration (unit_seqlen={args.unit_seqlen}, headdim={args.headdim}, "
-                              f"nheads={args.nheads}, causal={args.causal}, sparse_ratio={args.sparse_ratio}) "
-                              f"already exists in {args.save_benchmark_to_file}. Exiting.")
-                except json.JSONDecodeError as e:
-                    print(f"[WARNING] Could not parse line: {line[:50]}... Error: {e}")
-                    continue
+    # if os.path.exists(args.save_benchmark_to_file):
+    #     with open(args.save_benchmark_to_file, 'r') as f:
+            # for line in f:
+            #     line = line.strip()
+            #     if not line:  # 跳过空行
+            #         continue
+            #     try:
+            #         entry = json.loads(line)
+            #         # 检查关键参数是否匹配
+            #         if (entry.get('unit_seqlen') == args.unit_seqlen and
+            #             # entry.get('headdim') == args.headdim and
+            #             # entry.get('nhead_q') == args.nheads and
+            #             # entry.get('causal') == args.causal and
+            #             entry.get('sparse_ratio') == args.sparse_ratio):
+            #             print(f"[INFO] Configuration (unit_seqlen={args.unit_seqlen}, headdim={args.headdim}, "
+            #                   f"nheads={args.nheads}, causal={args.causal}, sparse_ratio={args.sparse_ratio}) "
+            #                   f"already exists in {args.save_benchmark_to_file}. Exiting.")
+            #     except json.JSONDecodeError as e:
+            #         print(f"[WARNING] Could not parse line: {line[:50]}... Error: {e}")
+            #         continue
     
     nruns = args.nruns
     nwarmup = args.nwarmup
