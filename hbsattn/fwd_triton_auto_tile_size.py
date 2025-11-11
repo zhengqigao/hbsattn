@@ -153,7 +153,7 @@ def _fwd_kernel(
             l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
             acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
             
-            tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
+            # tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
 
             num_k_block_start = tl.load(cu_num_k_block + batch_idx)
             num_k_block_end = tl.load(cu_num_k_block + batch_idx + 1)
