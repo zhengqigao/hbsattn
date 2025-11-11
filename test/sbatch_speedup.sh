@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=speedup_bench
-#SBATCH --output=sbatch_speedup_%j.log
-#SBATCH --partition mit_normal_gpu
+#SBATCH --output=./slurmlogs/sbatch_speedup_%j.log
+#SBATCH --partition mit_preemptable
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:h200:1
-#SBATCH --time=6:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=64G
 
 
