@@ -127,7 +127,7 @@ if __name__ == "__main__":
     
     # run once to get a golden reference
     if args.golden_ref:
-        golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+        golden_ref_v1 = hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
     else:
         golden_ref_v1 = None
 
