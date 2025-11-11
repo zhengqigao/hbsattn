@@ -60,20 +60,13 @@ def get_autotune_configs(q_block_size, k_block_size):
         triton.Config({"BLOCK_M": 32, "BLOCK_N": 16}, num_warps=4, num_stages=2),
         triton.Config({"BLOCK_M": 32, "BLOCK_N": 32}, num_warps=8, num_stages=2),
         triton.Config({"BLOCK_M": 64, "BLOCK_N": 64}, num_warps=8, num_stages=2),
-        
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=16, num_stages=4),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=16, num_stages=3),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=16, num_stages=2),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=16, num_stages=1),
-        
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=4),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=3),
         triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=2),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=1),
-        
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=4),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=3),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=2),
         triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=2),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=2),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=1),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=8, num_stages=1),
+        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=1),
         triton.Config({"BLOCK_M": 128, "BLOCK_N": 128}, num_warps=4, num_stages=1),
     ],
     key=['q_block_size', 'k_block_size']
@@ -99,9 +92,6 @@ def _fwd_kernel(
             BLOCK_M: tl.constexpr,
             BLOCK_N: tl.constexpr,
             BLOCK_DIM: tl.constexpr,
-            EVEN_HEADDIM: tl.constexpr,
-            EVEN_SEQ_QBLOCK: tl.constexpr,
-            EVEN_SEQ_KBLOCK: tl.constexpr,
         ):
             off_dim = tl.arange(0, BLOCK_DIM)
             
@@ -124,15 +114,6 @@ def _fwd_kernel(
             num_q_tile_in_batch = tl.cdiv(batch_q_end - batch_q_start, BLOCK_M)
             num_k_tile_in_batch = tl.cdiv(batch_k_end - batch_k_start, BLOCK_N)
             
-            block_q_start = tl.load(cu_q_block + off_q_block)
-            start_m = block_q_start + off_q_innertile * BLOCK_M
-            if start_m >= batch_q_end:
-                return
-            end_m = block_q_start + (off_q_innertile + 1) * BLOCK_M
-            
-            off_m = start_m + tl.arange(0, BLOCK_M)
-            q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
-
             start_m = tl.load(cu_q_block + off_q_block) + off_q_innertile * BLOCK_M
             if start_m >= batch_q_end:
                 return
@@ -145,14 +126,16 @@ def _fwd_kernel(
             if is_last_q_inner_tile_in_batch:
                 end_m = tl.minimum(end_m, tl.load(cu_q_block + off_q_block + 1))
             
-            q_block = tl.load(q_ptr, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim), other=0.0)
+            off_m = start_m + tl.arange(0, BLOCK_M)
             
+            q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
+            q_block = tl.load(q_ptr, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim), other=0.0)
             
             m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
             l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
             acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
             
-            # tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
+            tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
 
             num_k_block_start = tl.load(cu_num_k_block + batch_idx)
             num_k_block_end = tl.load(cu_num_k_block + batch_idx + 1)
@@ -205,7 +188,6 @@ def _fwd_kernel(
                         acc += tl.dot(p, v_block, allow_tf32=False) #  
                         m_i = m_ij
 
-
             l_i = tl.where(l_i == 0, 1, l_i)
             l_recip = 1 / l_i
             acc = acc * l_recip[:,None]
@@ -241,9 +223,6 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
     lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     
-    EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
-    EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
-    even_headdim = headdim == BLOCK_DIM
     
     # Grid function uses META to get the autotuned BLOCK_M
     grid = lambda META: (num_q_block, triton.cdiv(q_block_size, META["BLOCK_M"]), nhead_q)
@@ -269,14 +248,10 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         k_block_size,
         # BLOCK_M=BLOCK_M,
         # BLOCK_N=BLOCK_N,
-        BLOCK_DIM=BLOCK_DIM,
-        EVEN_HEADDIM=even_headdim,
-        EVEN_SEQ_QBLOCK=EVEN_SEQ_QBLOCK,
-        EVEN_SEQ_KBLOCK=EVEN_SEQ_KBLOCK,
+        BLOCK_DIM=BLOCK_DIM
     )
     
     best_cfg = _fwd_kernel.best_config
     print(f"[Autotune Result] BLOCK_M={best_cfg.kwargs['BLOCK_M']}, BLOCK_N={best_cfg.kwargs['BLOCK_N']}, num_warps={best_cfg.num_warps}, num_stages={best_cfg.num_stages}")
 
     return out
-
