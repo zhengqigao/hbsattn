@@ -49,27 +49,24 @@ if __name__ == "__main__":
     parser.add_argument('--golden_ref', action='store_true', default=False)
     args = parser.parse_args()
     
-    ## TODO: add a logic here, read the args.save_benchmark_to_file, and if the unit_seqlen is already in the file, then do nothing and exit.
-    # if os.path.exists(args.save_benchmark_to_file):
-    #     with open(args.save_benchmark_to_file, 'r') as f:
-            # for line in f:
-            #     line = line.strip()
-            #     if not line:  # 跳过空行
-            #         continue
-            #     try:
-            #         entry = json.loads(line)
-            #         # 检查关键参数是否匹配
-            #         if (entry.get('unit_seqlen') == args.unit_seqlen and
-            #             # entry.get('headdim') == args.headdim and
-            #             # entry.get('nhead_q') == args.nheads and
-            #             # entry.get('causal') == args.causal and
-            #             entry.get('sparse_ratio') == args.sparse_ratio):
-            #             print(f"[INFO] Configuration (unit_seqlen={args.unit_seqlen}, headdim={args.headdim}, "
-            #                   f"nheads={args.nheads}, causal={args.causal}, sparse_ratio={args.sparse_ratio}) "
-            #                   f"already exists in {args.save_benchmark_to_file}. Exiting.")
-            #     except json.JSONDecodeError as e:
-            #         print(f"[WARNING] Could not parse line: {line[:50]}... Error: {e}")
-            #         continue
+    ## TODO: add a logic here, read the args.save_benchmark_to_file, and if the unit_seqlen is already in the file, then do nothing and exit.le
+    if os.path.exists(args.save_benchmark_to_file):
+        with open(args.save_benchmark_to_file, 'r') as f:
+            existing_data = json.load(f)
+                
+            # Check if the current configuration already exists
+        for entry in existing_data:
+            if (entry.get('unit_seqlen') == args.unit_seqlen and
+                    entry.get('headdim') == args.headdim and
+                    entry.get('nhead_q') == args.nheads and
+                    entry.get('causal') == args.causal and
+                    entry.get('sparse_ratio') == args.sparse_ratio):
+                print(f"[INFO] Configuration already exists in {args.save_benchmark_to_file}:")
+                print(f"       unit_seqlen={args.unit_seqlen}, headdim={args.headdim}, "
+                          f"nheads={args.nheads}, causal={args.causal}, sparse_ratio={args.sparse_ratio}")
+                print(f"[INFO] Skipping benchmark. Exiting.")
+                exit(0)
+        print(f"[INFO] Configuration not found, proceeding with benchmark...")
     
     nruns = args.nruns
     nwarmup = args.nwarmup
@@ -208,10 +205,9 @@ if __name__ == "__main__":
         print(f"Error benchmarking flexattention: {e}")
         v5_result = {}
 
-    # if save_benchmark_to_file is not empty, save the benchmark results to a file.
     if args.save_benchmark_to_file:
-        # Save all benchmark results in a dict for one-shot dump
-        all_results = {
+        # Prepare current benchmark result
+        current_result = {
             "flash_attn_base_result": flash_attn_base_result,
             "hbsattn(our fix)": our_fix_result,
             "hbsattn(our auto)": our_auto_result,
@@ -223,8 +219,20 @@ if __name__ == "__main__":
             "causal": causal,
             "sparse_ratio": args.sparse_ratio,
         }
-        # Append all_results as a line-delimited JSON object to the file
-        with open(args.save_benchmark_to_file, 'a') as f:
-            f.write(json.dumps(all_results, indent=4))
-            f.write('\n')
-        print(f"Benchmark results appended to {args.save_benchmark_to_file}")
+        
+        # Read existing data or create empty list
+        if os.path.exists(args.save_benchmark_to_file):
+            with open(args.save_benchmark_to_file, 'r') as f:
+                all_data = json.load(f)
+        else:
+            all_data = []
+        
+        # Append current result
+        all_data.append(current_result)
+        
+        # Write back to file
+        with open(args.save_benchmark_to_file, 'w') as f:
+            json.dump(all_data, f, indent=4)
+        
+        print(f"\n Benchmark results saved to {args.save_benchmark_to_file}")
+        print(f"   Total entries in file: {len(all_data)}")
