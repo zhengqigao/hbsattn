@@ -15,6 +15,7 @@
 
 
 module load cuda
+source ~/.bashrc
 conda activate zq_torch 
 
 sparse_ratio=${1:-0.7}
