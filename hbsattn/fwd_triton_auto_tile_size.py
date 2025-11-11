@@ -128,7 +128,7 @@ def _fwd_kernel(
 
             if EVEN_SEQQ_BLOCK:            
                 if EVEN_HEADDIM:
-                    q_block = tl.load(q_ptr, other=0.0)
+                    q_block = tl.load(q_ptr)
                 else:
                     q_block = tl.load(q_ptr, mask=off_dim[None, :] < headdim, other=0.0)
             else:     
@@ -169,10 +169,8 @@ def _fwd_kernel(
                         
                         if EVEN_SEQK_BLOCK:
                             if EVEN_HEADDIM:
-                                k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, 
-                                        other=0.0)
-                                v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, 
-                                        other=0.0)
+                                k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d)
+                                v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d)
                             else:
                                 k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, 
                                         mask = off_dim[:, None] < headdim, 
