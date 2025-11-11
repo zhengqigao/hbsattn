@@ -181,7 +181,7 @@ def _fwd_kernel(
                                         mask = off_dim[:, None] < headdim, 
                                         other=0.0)
                                 v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, 
-                                        mask = off_dim[:, None] < headdim, 
+                                        mask = off_dim[None, :] < headdim, 
                                         other=0.0)
                         else:
                             num_k_tile_in_batch = tl.cdiv(batch_k_end - batch_k_start, BLOCK_N)
