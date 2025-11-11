@@ -27,15 +27,12 @@ if __name__ == "__main__":
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
     
-    # cu_k_seqlens = torch.tensor([0,32, 61, 100, 134, 157, 201, 253, 260], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
-
-    batch_size = 8
-    cu_k_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_k_seqlens = torch.tensor([0,32, 61, 100, 134, 157, 201, 253, 260], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160] # , 61, 100, 134, 157
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    # cu_q_seqlens = torch.tensor([0,32, 64, 96, 128, 160,165, 170, 280], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
-    cu_q_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_q_seqlens = torch.tensor([0,32, 64, 96, 128, 160,165, 170, 280], dtype=torch.int32, device=device) # [0, 32, 64, 96, 128, 160]
+    # cu_q_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
@@ -111,16 +108,8 @@ if __name__ == "__main__":
     # run once to get a golden reference
     golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
-    golden_ref_v2 = hbsattn_reference_v2_with_pytorch(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-
-    golden_ref_v3 = hbsattn_reference_v3_qkallfirst(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-
-    golden_ref_v4 = hbsattn_reference_v4_hanlab_bsattn(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     print("golden_ref_v1", golden_ref_v1, torch.isnan(golden_ref_v1).any())
-    print("golden_ref_v2", golden_ref_v2, torch.isnan(golden_ref_v2).any())
-    print("golden_ref_v3", golden_ref_v3, torch.isnan(golden_ref_v3).any())
-    print("golden_ref_v4", golden_ref_v4, torch.isnan(golden_ref_v4).any())
 
     out_auto_tilesize = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
     print("out_auto_tilesize", out_auto_tilesize, torch.isnan(out_auto_tilesize).any())
@@ -133,57 +122,20 @@ if __name__ == "__main__":
         print("Error in out_fix_tilesize", e)
 
 
-
-    # benchmarking start here
     benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v1_base'
-    }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v2_with_pytorch'
-    }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
-    benchmark({
-        'golden': golden_ref_v1,
-        'n_runs': nruns,
-        'n_warmup': nwarmup,
-        'name': 'hbsattn_reference_v3_qkallfirst'
-    }, hbsattn_reference_v3_qkallfirst, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
-    try:
-        benchmark({
             'golden': golden_ref_v1,
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_auto_tilesize'
         }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    except Exception as e:
-        print("Error in HBSAttention_auto_tilesize", e)
 
-    try:
-        benchmark({
+
+
+    benchmark({
         'golden': golden_ref_v1,
         'n_runs': nruns,
         'n_warmup': nwarmup,
         'name': 'HBSAttention_fix_tilesize'
     }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
         
-    except Exception as e:
-        print("Error in HBSAttention_fix_tilesize", e)
 
-    benchmark({
-                'golden': golden_ref_v1,
-                'n_runs': nruns,
-                'n_warmup': nwarmup,
-                'name': 'HBSAttention_hanlab_bsattn'
-            }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_hanlab_bsattn, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-
-
-    
-    

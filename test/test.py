@@ -78,20 +78,18 @@ if __name__ == "__main__":
     nhead_q = args.nheads
     batch_size = args.batch_size
     
-    q_block_size = 16 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
-    k_block_size = 16
-
+    q_block_size = 128 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
+    k_block_size = 128
+    assert q_block_size == k_block_size == 128, "q_block_size and k_block_size must be the same."
+    
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
 
-    cu_k_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) 
-    cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
-    
-    # cu_k_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_k_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    # cu_q_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_q_seqlens = torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
@@ -149,6 +147,7 @@ if __name__ == "__main__":
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_auto_tilesize'
         }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+
 
 
     our_fix_result = benchmark({
