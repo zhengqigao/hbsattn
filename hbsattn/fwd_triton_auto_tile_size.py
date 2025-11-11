@@ -251,7 +251,7 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         BLOCK_DIM=BLOCK_DIM
     )
     
-    best_cfg = _fwd_kernel.best_config
-    print(f"[Autotune Result] BLOCK_M={best_cfg.kwargs['BLOCK_M']}, BLOCK_N={best_cfg.kwargs['BLOCK_N']}, num_warps={best_cfg.num_warps}, num_stages={best_cfg.num_stages}")
+    # best_cfg = _fwd_kernel.best_config
+    # print(f"[Autotune Result] BLOCK_M={best_cfg.kwargs['BLOCK_M']}, BLOCK_N={best_cfg.kwargs['BLOCK_N']}, num_warps={best_cfg.num_warps}, num_stages={best_cfg.num_stages}")
 
     return out
