@@ -207,16 +207,9 @@ def _fwd_kernel(
     off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
 
     if EVEN_SEQ_QBLOCK:
-        if EVEN_HEADDIM:
-            tl.store(lse + off_lse, tl.log(l_i))
-        else:
-            tl.store(lse + off_lse, tl.log(l_i), mask=off_dim[None, :] < headdim)
+        tl.store(lse + off_lse, tl.log(l_i))
     else:
-        if EVEN_HEADDIM:
-            tl.store(lse + off_lse, tl.log(l_i), mask=off_m[:, None] < end_m)
-        else:
-            tl.store(lse + off_lse, tl.log(l_i), mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
-
+        tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
 
@@ -245,7 +238,6 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
     EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
-    print(f"in _forward_fix_tile_size, EVEN_SEQ_KBLOCK={EVEN_SEQ_KBLOCK}, EVEN_SEQ_QBLOCK={EVEN_SEQ_QBLOCK}, even_headdim={even_headdim}")
     # launch kernel
     grid = (num_q_block, nhead_q)
 
