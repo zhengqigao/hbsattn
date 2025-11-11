@@ -108,18 +108,10 @@ def _fwd_kernel(
             num_k_tile_in_block = k_block_size // BLOCK_N
             
             batch_idx = tl.load(q_block_to_batch + off_q_block)
-            cu_q_ptr = cu_q_seqlens + batch_idx
-            cu_k_ptr = cu_k_seqlens + batch_idx
-            batch_q_start_end = tl.load(cu_q_ptr + tl.arange(0, 2))
-            batch_k_start_end = tl.load(cu_k_ptr + tl.arange(0, 2))
-            batch_q_start = batch_q_start_end[0]
-            batch_q_end = batch_q_start_end[1]
-            batch_k_start = batch_k_start_end[0]
-            batch_k_end = batch_k_start_end[1]
-            # batch_q_start = tl.load(cu_q_seqlens + batch_idx)
-            # batch_q_end = tl.load(cu_q_seqlens + batch_idx + 1)
-            # batch_k_start = tl.load(cu_k_seqlens + batch_idx)
-            # batch_k_end = tl.load(cu_k_seqlens + batch_idx + 1)
+            batch_q_start = tl.load(cu_q_seqlens + batch_idx)
+            batch_q_end = tl.load(cu_q_seqlens + batch_idx + 1)
+            batch_k_start = tl.load(cu_k_seqlens + batch_idx)
+            batch_k_end = tl.load(cu_k_seqlens + batch_idx + 1)
             offset = batch_k_end - batch_k_start - (batch_q_end - batch_q_start)
             
             block_q_start = tl.load(cu_q_block + off_q_block)
