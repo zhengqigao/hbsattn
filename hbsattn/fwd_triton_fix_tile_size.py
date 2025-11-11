@@ -245,7 +245,7 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
     EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
-    
+    print(f"in _forward_fix_tile_size, EVEN_SEQ_KBLOCK={EVEN_SEQ_KBLOCK}, EVEN_SEQ_QBLOCK={EVEN_SEQ_QBLOCK}, even_headdim={even_headdim}")
     # launch kernel
     grid = (num_q_block, nhead_q)
 
