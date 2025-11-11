@@ -39,8 +39,8 @@ if __name__ == "__main__":
     
     assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     
-    q_block_size = 128
-    k_block_size = 128
+    q_block_size = 16
+    k_block_size = 16
     
     q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
     k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
