@@ -91,7 +91,7 @@ def _fwd_kernel(
             headdim, q_block_size, k_block_size,
             BLOCK_M: tl.constexpr,
             BLOCK_N: tl.constexpr,
-            BLOCK_DIM: tl.constexpr
+            BLOCK_DIM: tl.constexpr,
         ):
             off_dim = tl.arange(0, BLOCK_DIM)
             
