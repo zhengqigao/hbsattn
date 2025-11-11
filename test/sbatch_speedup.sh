@@ -29,7 +29,7 @@ else
     suffix="nocausal"
 fi
 
-OUTPUT_FILE=./test/benchmark_${suffix}_results_sparse${sparse_ratio}.json
+OUTPUT_FILE=./test/new_benchmark_${suffix}_results_sparse${sparse_ratio}.json
 
 SEQLENS=(128 256 512 1024 2048 4096 8192 16384 32768 65536 131072)
 
