@@ -64,7 +64,7 @@ if __name__ == "__main__":
                 print(f"[INFO] Configuration already exists in {args.save_benchmark_to_file}:")
                 print(f"       unit_seqlen={args.unit_seqlen}, headdim={args.headdim}, "
                           f"nheads={args.nheads}, causal={args.causal}, sparse_ratio={args.sparse_ratio}")
-                print(f"[INFO] Skipping benchmark. Exiting.")
+                print(f"[INFO] Skipping benchmark...")
                 exit(0)
         print(f"[INFO] Configuration not found, proceeding with benchmark...")
     
