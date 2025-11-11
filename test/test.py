@@ -142,7 +142,7 @@ if __name__ == "__main__":
         }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
     
     our_auto_result = benchmark({
-                'golden': v4_result,
+                'golden': golden_ref_v1,
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_auto_tilesize'
