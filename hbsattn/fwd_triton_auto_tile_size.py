@@ -121,6 +121,9 @@ def _fwd_kernel(
             batch_k_end = tl.load(cu_k_seqlens + batch_idx + 1)
             offset = batch_k_end - batch_k_start - (batch_q_end - batch_q_start)
             
+            num_q_tile_in_batch = tl.cdiv(batch_q_end - batch_q_start, BLOCK_M)
+            num_k_tile_in_batch = tl.cdiv(batch_k_end - batch_k_start, BLOCK_N)
+            
             block_q_start = tl.load(cu_q_block + off_q_block)
             start_m = block_q_start + off_q_innertile * BLOCK_M
             if start_m >= batch_q_end:
@@ -137,7 +140,6 @@ def _fwd_kernel(
             end_m = tl.load(cu_q_block + off_q_block) + (off_q_innertile + 1) * BLOCK_M
 
             num_q_block_start = tl.load(cu_num_q_block + batch_idx)
-            num_q_tile_in_batch = tl.cdiv(batch_q_end - batch_q_start, BLOCK_M)
             is_last_q_inner_tile_in_batch = (off_q_innertile + (off_q_block - num_q_block_start) * num_q_tile_in_block == num_q_tile_in_batch - 1)
             
             if is_last_q_inner_tile_in_batch:
@@ -165,7 +167,6 @@ def _fwd_kernel(
                     if (cond1 and cond2) and cond3:
                         
                         end_n = tl.load(cu_k_block + off_k_block) + (off_k_innertile + 1) * BLOCK_N
-                        num_k_tile_in_batch = tl.cdiv(batch_k_end - batch_k_start, BLOCK_N)
                         is_last_k_inner_tile_in_batch = (off_k_innertile + (off_k_block - num_k_block_start) * num_k_tile_in_block == num_k_tile_in_batch - 1)
 
                         if is_last_k_inner_tile_in_batch:
