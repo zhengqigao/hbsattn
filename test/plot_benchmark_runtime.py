@@ -2,10 +2,10 @@
 """
 Utility to visualize runtimes from benchmark_results.json.
 
-The benchmark file is expected to contain one JSON object per benchmark
-configuration (for example, in NDJSON format). Each object should include
-`unit_seqlen`, plus one or more result entries whose keys map to dictionaries
-containing runtime statistics (for example `runtime_mean`, `runtime_std`, etc.).
+The benchmark file is expected to contain a JSON array of benchmark
+configuration objects. Each object should include `unit_seqlen`, plus one 
+or more result entries whose keys map to dictionaries containing runtime 
+statistics (for example `runtime_mean`, `runtime_std`, etc.).
 Scalar metadata fields such as `unit_seqlen`, `headdim`, and `nhead_q` are
 ignored for plotting.
 
@@ -30,30 +30,19 @@ import numpy as np
 
 def load_benchmark_records(path: pathlib.Path) -> List[Dict]:
     """
-    Load a benchmark file that stores multiple JSON objects back-to-back.
-
-    This supports files produced by repeatedly dumping JSON without wrapping
-    them in a list (i.e. NDJSON-like structure).
+    Load a benchmark file that stores a JSON array of benchmark records.
+    
+    The file should contain a single JSON array with multiple objects.
     """
-    text = path.read_text().strip()
-    decoder = json.JSONDecoder()
-    records = []
-    idx = 0
-
-    while idx < len(text):
-        # Skip whitespace between objects
-        while idx < len(text) and text[idx].isspace():
-            idx += 1
-        if idx >= len(text):
-            break
-
-        record, end_idx = decoder.raw_decode(text, idx)
-        records.append(record)
-        idx = end_idx
-
+    with open(path, 'r') as f:
+        records = json.load(f)
+    
+    if not isinstance(records, list):
+        raise ValueError(f"Expected JSON array in {path}, got {type(records)}")
+    
     if not records:
-        raise ValueError(f"No JSON objects found in {path}")
-
+        raise ValueError(f"No benchmark records found in {path}")
+    
     return records
 
 
@@ -100,7 +89,7 @@ def plot_series(
     """
     Plot each method's runtime metric against unit sequence length.
     Uses log2 scale for x-axis and log scale for y-axis.
-    Adds a shaded region to indicate ±1 standard deviation.
+    Adds a shaded region to indicate ±3 standard deviations.
     """
     fig, ax = plt.subplots()
 
@@ -176,10 +165,13 @@ def main() -> None:
     args = parse_args()
 
     records = load_benchmark_records(args.benchmark_file)
+    print(f"Loaded {len(records)} benchmark records from {args.benchmark_file}")
+    
     series = collect_series_with_std(records, args.metric)
+    print(f"Found {len(series)} methods to plot")
+    
     plot_series(series, args.metric, args.output, args.show)
 
 
 if __name__ == "__main__":
     main()
-
