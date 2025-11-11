@@ -13,6 +13,8 @@ from hbsattn.reference import (
     hbsattn_reference_v5_flexattn,
 )
 
+from flash_attn import flash_attn_varlen_func
+
 from hbsattn.utils import calculate_blocks
 from hbsattn.benchmark import benchmark
 import argparse
@@ -44,6 +46,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--save_benchmark_to_file', type=str, default = './test/benchmark_all_results.json')
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
+    parser.add_argument('--golden_ref', action='store_true', default=False)
     args = parser.parse_args()
     
     nruns = args.nruns
@@ -104,27 +107,26 @@ if __name__ == "__main__":
 
     
     # run once to get a golden reference
-    golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    if args.golden_ref:
+        golden_ref_v1 = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    else:
+        golden_ref_v1 = None
 
-    # benchmarking all methods start here
-    # v1_result = benchmark({
-    #     'golden': golden_ref_v1,
-    #     'n_runs': nruns,
-    #     'n_warmup': nwarmup,
-    #     'name': 'hbsattn_reference_v1_base'
-    # }, hbsattn_reference_v1_base, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    
-    # v2_result = benchmark({
-    #     'golden': golden_ref_v1,
-    #     'n_runs': nruns,
-    #     'n_warmup': nwarmup,
-    #     'name': 'hbsattn_reference_v2_with_pytorch'
-    # }, hbsattn_reference_v2_with_pytorch, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-
+    # for referencing the base runtime of a full dense attention.
+    try:
+        flash_attn_base_result = benchmark({
+            'golden': golden_ref_v1 if args.golden_ref else None,
+            'n_runs': nruns,
+            'n_warmup': nwarmup,
+            'name': 'FlashAttention'
+        }, flash_attn_varlen_func, q, k, v, cu_q_seqlens, cu_k_seqlens, max_k_seqlen, max_q_seqlen, 0.0, softmax_scale,causal)
+    except Exception as e:
+        print(f"Error benchmarking flash attention: {e}")
+        flash_attn_base_result = {}
 
     try:
         our_auto_result = benchmark({
-                'golden': golden_ref_v1,
+                'golden': golden_ref_v1 if args.golden_ref else None,
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_auto_tilesize'
@@ -136,7 +138,7 @@ if __name__ == "__main__":
 
     try:
         our_fix_result = benchmark({
-            'golden': golden_ref_v1,
+            'golden': golden_ref_v1 if args.golden_ref else None,
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_fix_tilesize'
@@ -151,7 +153,7 @@ if __name__ == "__main__":
 
     try:
         v4_result = benchmark({
-                    'golden': golden_ref_v1,
+                    'golden': golden_ref_v1 if args.golden_ref else None,
                     'n_runs': nruns,
                     'n_warmup': nwarmup,
                     'name': 'HBSAttention_hanlab_bsattn'
@@ -175,7 +177,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         
         v5_result = benchmark({
-                    'golden': golden_ref_v1,
+                    'golden': golden_ref_v1 if args.golden_ref else None,
                     'n_runs': nruns,
                     'n_warmup': nwarmup,
                     'name': 'HBSAttention_flexattn'
@@ -188,15 +190,16 @@ if __name__ == "__main__":
     if args.save_benchmark_to_file:
         # Save all benchmark results in a dict for one-shot dump
         all_results = {
+            "flash_attn_base_result": flash_attn_base_result,
             "hbsattn(our fix)": our_fix_result,
-            # "pytorch ref 1": v1_result,
-            # "pytorch ref 2": v2_result,
             "hbsattn(our auto)": our_auto_result,
             "hanlab_block-sparse-attn": v4_result,
             "flexattention": v5_result,
             "unit_seqlen": unit_seqlen,
             "headdim": headdim,
             "nhead_q": nhead_q,
+            "causal": causal,
+            "sparse_ratio": args.sparse_ratio,
         }
         # Append all_results as a line-delimited JSON object to the file
         with open(args.save_benchmark_to_file, 'a') as f:
