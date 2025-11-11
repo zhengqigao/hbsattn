@@ -94,8 +94,8 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     
     
 # run this file in terminal with command: 
-#     pytest -v -k "tile_mode_auto" test_accuracy.py 
-#     pytest -v -k "tile_mode_fix and not q_block_size_80" main_pytest_for_config.py # tile-mode-fix only support block_size = power of 2. 
+#     pytest -v -k "tile_mode_auto" test/test_accuracy.py 
+#     pytest -v -k "tile_mode_fix and not q_block_size_80" test/test_accuracy.py # tile-mode-fix only support block_size = power of 2. 
 y 
 if __name__ == "__main__":
     test_attention_configs(causal=True, nhead_q=2, nhead_k=2, softmax_scale=None, dtype=torch.bfloat16, q_block_size=16, k_block_size=16, k_q_same_seqlen=True)
