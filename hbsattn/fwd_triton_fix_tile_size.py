@@ -10,12 +10,18 @@ __all__ = ['_forward_fix_tile_size']
 
 @triton.autotune(
     configs=[
-        triton.Config(num_warps=4, num_stages=2),
-        triton.Config(num_warps=8, num_stages=2),
-        triton.Config(num_warps=4, num_stages=1),
-        triton.Config(num_warps=8, num_stages=1),
+        triton.Config({}, num_warps=4, num_stages=1),
+        triton.Config({}, num_warps=4, num_stages=2),
+        triton.Config({}, num_warps=4, num_stages=3),
+        triton.Config({}, num_warps=4, num_stages=4),
+        triton.Config({}, num_warps=8, num_stages=1),
+        triton.Config({}, num_warps=8, num_stages=2),
+        triton.Config({}, num_warps=8, num_stages=3),
+        triton.Config({}, num_warps=8, num_stages=4),
+        triton.Config({}, num_warps=16, num_stages=2),
+        triton.Config({}, num_warps=16, num_stages=3),
     ],
-    key=['BLOCK_M', 'BLOCK_N']
+    key=['BLOCK_M', 'BLOCK_N'],
 )
 @triton.jit
 def _fwd_kernel(
