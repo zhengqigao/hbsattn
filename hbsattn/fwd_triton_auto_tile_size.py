@@ -240,10 +240,12 @@ def _fwd_kernel(
                     tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m))
                 else:
                     tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
-            tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
 
             off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
-            tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
+            if EVEN_SEQQ_BLOCK:
+                tl.store(lse + off_lse, tl.log(l_i))
+            else:
+                tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
 def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
