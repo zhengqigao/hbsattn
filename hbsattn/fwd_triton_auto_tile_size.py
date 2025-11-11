@@ -130,7 +130,7 @@ def _fwd_kernel(
             off_m = start_m + tl.arange(0, BLOCK_M)
             q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
 
-            if EVEN_SEQ_QBLOCK:            
+            if False: # EVEN_SEQ_QBLOCK             
                 if EVEN_HEADDIM:
                     q_block = tl.load(q_ptr)
                 else:
@@ -172,7 +172,7 @@ def _fwd_kernel(
                         off_n = start_n + tl.arange(0, BLOCK_N)
                         is_last_k_inner_tile_in_batch = False # default to False
                         
-                        if EVEN_SEQ_KBLOCK:
+                        if False: # EVEN_SEQ_KBLOCK
                             if EVEN_HEADDIM:
                                 k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d)
                                 v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d)
@@ -237,7 +237,7 @@ def _fwd_kernel(
             
             off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
             out_ptr = out + off_o
-            if EVEN_SEQ_QBLOCK:
+            if False: # EVEN_SEQ_QBLOCK
                 if EVEN_HEADDIM:
                     tl.store(out_ptr, acc)
                 else:
@@ -249,6 +249,7 @@ def _fwd_kernel(
                     tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
 
             off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
+            
             if EVEN_SEQ_QBLOCK:
                 tl.store(lse + off_lse, tl.log(l_i))
             else:
