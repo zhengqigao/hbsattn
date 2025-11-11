@@ -1,3 +1,4 @@
+#!/bin/bash
 
 sbatch ./test/sbatch_speedup.sh 0.3 true
 sbatch ./test/sbatch_speedup.sh 0.5 true
