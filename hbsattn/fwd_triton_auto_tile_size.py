@@ -87,7 +87,6 @@ def _fwd_kernel(
             BLOCK_N: tl.constexpr,
             BLOCK_DIM: tl.constexpr
         ):
-            tl.device_print(f"BLOCK_M: {BLOCK_M}, BLOCK_N: {BLOCK_N}")
             off_dim = tl.arange(0, BLOCK_DIM)
             
             off_head_q = tl.program_id(2)
@@ -245,5 +244,9 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         # BLOCK_N=BLOCK_N,
         BLOCK_DIM=BLOCK_DIM
     )
+    
+    best_cfg = _fwd_kernel.best_config
+    print(f"[Autotune Result] BLOCK_M={best_cfg.kwargs['BLOCK_M']}, BLOCK_N={best_cfg.kwargs['BLOCK_N']}, num_warps={best_cfg.num_warps}, num_stages={best_cfg.num_stages}")
+
     return out
 
