@@ -63,8 +63,8 @@ def _fwd_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_DIM: tl.constexpr,
     EVEN_HEADDIM: tl.constexpr,
-    EVEN_SEQQ_BLOCK: tl.constexpr,
-    EVEN_SEQK_BLOCK: tl.constexpr,
+    EVEN_SEQ_QBLOCK: tl.constexpr,
+    EVEN_SEQ_KBLOCK: tl.constexpr,
 ):
     off_head_q = tl.program_id(1)
     off_head_k = off_head_q // head_q_to_k_ratio
@@ -78,7 +78,7 @@ def _fwd_kernel(
     
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
-    if EVEN_SEQQ_BLOCK:
+    if EVEN_SEQ_QBLOCK:
         if EVEN_HEADDIM:
             q_block = tl.load(q_ptr)
         else:
@@ -122,7 +122,7 @@ def _fwd_kernel(
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
-            if EVEN_SEQK_BLOCK:
+            if EVEN_SEQ_KBLOCK:
                 if EVEN_HEADDIM:
                     k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d)
                     v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d)
@@ -160,7 +160,7 @@ def _fwd_kernel(
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
             
-            if not EVEN_SEQK_BLOCK and start_n + BLOCK_N > end_n: 
+            if not EVEN_SEQ_KBLOCK and start_n + BLOCK_N > end_n: 
                 qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
             
             p = tl.exp(qk)
@@ -189,7 +189,7 @@ def _fwd_kernel(
     
     off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
     out_ptr = out + off_o
-    if EVEN_SEQQ_BLOCK:
+    if EVEN_SEQ_QBLOCK:
         if EVEN_HEADDIM:
             tl.store(out_ptr, acc)
         else:
@@ -202,7 +202,7 @@ def _fwd_kernel(
 
     off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
 
-    if EVEN_SEQQ_BLOCK:
+    if EVEN_SEQ_QBLOCK:
         if EVEN_HEADDIM:
             tl.store(lse + off_lse, tl.log(l_i))
         else:
@@ -238,8 +238,8 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
     lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     
-    even_seqk_block = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
-    even_seqq_block = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
+    EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
+    EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
     
     # launch kernel
@@ -273,8 +273,8 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
         BLOCK_N,
         BLOCK_DIM,        
         EVEN_HEADDIM = even_headdim,
-        EVEN_SEQQ_BLOCK = even_seqq_block,
-        EVEN_SEQK_BLOCK = even_seqk_block,
+        EVEN_SEQ_QBLOCK = EVEN_SEQ_QBLOCK,
+        EVEN_SEQ_KBLOCK = EVEN_SEQ_KBLOCK,
     )
     return out
 
