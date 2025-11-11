@@ -8,6 +8,15 @@ from hbsattn.utils import calculate_blocks
 
 __all__ = ['_forward_fix_tile_size']
 
+@triton.autotune(
+    configs=[
+        triton.Config(num_warps=4, num_stages=2),
+        triton.Config(num_warps=8, num_stages=2),
+        triton.Config(num_warps=4, num_stages=1),
+        triton.Config(num_warps=8, num_stages=1),
+    ],
+    key=['BLOCK_M', 'BLOCK_N']
+)
 @triton.jit
 def _fwd_kernel(
     q,
@@ -46,7 +55,10 @@ def _fwd_kernel(
     headdim,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
-    BLOCK_DIM: tl.constexpr
+    BLOCK_DIM: tl.constexpr,
+    EVEN_HEADDIM: tl.constexpr,
+    EVEN_SEQQ_BLOCK: tl.constexpr,
+    EVEN_SEQK_BLOCK: tl.constexpr,
 ):
     off_head_q = tl.program_id(1)
     off_head_k = off_head_q // head_q_to_k_ratio
@@ -60,7 +72,16 @@ def _fwd_kernel(
     
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
-    q_block = tl.load(q_ptr, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim), other=0.0)
+    if EVEN_SEQQ_BLOCK:
+        if EVEN_HEADDIM:
+            q_block = tl.load(q_ptr)
+        else:
+            q_block = tl.load(q_ptr, mask=off_dim[None, :] < headdim, other=0.0)
+    else:
+        if EVEN_HEADDIM:
+            q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m, other=0.0)
+        else:
+            q_block = tl.load(q_ptr, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim), other=0.0)
     
 
     # accumulator
@@ -68,7 +89,7 @@ def _fwd_kernel(
     l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
     acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
     
-    tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
+    # tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
     
     # batch index 
     batch_idx = tl.load(q_block_to_batch + off_q_block)
@@ -95,12 +116,32 @@ def _fwd_kernel(
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
-            k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, 
-                              mask = (off_n[None,:] < end_n) & (off_dim[:, None] < headdim), 
-                              other=0.0)
-            v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, 
-                              mask = (off_n[:,None] < end_n) & (off_dim[None, :] < headdim), 
-                              other=0.0)
+            if EVEN_SEQK_BLOCK:
+                if EVEN_HEADDIM:
+                    k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d)
+                    v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d)
+                else:
+                    k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, 
+                                    mask =off_dim[:, None] < headdim, 
+                                    other=0.0)
+                    v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, 
+                                    mask = off_dim[None, :] < headdim, 
+                                    other=0.0)
+            else:
+                if EVEN_HEADDIM:
+                    k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, 
+                                    mask = off_n[None,:] < end_n, 
+                                    other=0.0)
+                    v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, 
+                                    mask = off_n[:,None] < end_n, 
+                                    other=0.0)
+                else:
+                    k_block = tl.load(k + off_n[None,:] * stride_k_s + off_head_k * stride_k_h + off_dim[:, None] * stride_k_d, 
+                                    mask = (off_n[None,:] < end_n) & (off_dim[:, None] < headdim), 
+                                    other=0.0)
+                    v_block = tl.load(v + off_n[:,None] * stride_v_s + off_head_k * stride_v_h + off_dim[None, :] * stride_v_d, 
+                                    mask = (off_n[:,None] < end_n) & (off_dim[None, :] < headdim), 
+                                    other=0.0)
             
             # Core part: online Softmax
             qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
@@ -113,7 +154,7 @@ def _fwd_kernel(
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
             
-            if start_n + BLOCK_N > end_n: 
+            if not EVEN_SEQK_BLOCK and start_n + BLOCK_N > end_n: 
                 qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
             
             p = tl.exp(qk)
@@ -142,10 +183,30 @@ def _fwd_kernel(
     
     off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
     out_ptr = out + off_o
-    tl.store(out_ptr, acc, mask = (off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
+    if EVEN_SEQQ_BLOCK:
+        if EVEN_HEADDIM:
+            tl.store(out_ptr, acc)
+        else:
+            tl.store(out_ptr, acc, mask=off_dim[None, :] < headdim)
+    else:
+        if EVEN_HEADDIM:
+            tl.store(out_ptr, acc, mask=off_m[:, None] < end_m)
+        else:
+            tl.store(out_ptr, acc, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
 
     off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
-    tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
+
+    if EVEN_SEQQ_BLOCK:
+        if EVEN_HEADDIM:
+            tl.store(lse + off_lse, tl.log(l_i))
+        else:
+            tl.store(lse + off_lse, tl.log(l_i), mask=off_dim[None, :] < headdim)
+    else:
+        if EVEN_HEADDIM:
+            tl.store(lse + off_lse, tl.log(l_i), mask=off_m[:, None] < end_m)
+        else:
+            tl.store(lse + off_lse, tl.log(l_i), mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
+
 
 
 
@@ -170,6 +231,10 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
     out = torch.empty_like(q).contiguous()
     lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
     tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
+    
+    even_seqk_block = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
+    even_seqq_block = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
+    even_headdim = headdim == BLOCK_DIM
     
     # launch kernel
     grid = (num_q_block, nhead_q)
@@ -200,7 +265,10 @@ def _forward_fix_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_bl
         headdim,
         BLOCK_M,
         BLOCK_N,
-        BLOCK_DIM
+        BLOCK_DIM,        
+        EVEN_HEADDIM = even_headdim,
+        EVEN_SEQQ_BLOCK = even_seqq_block,
+        EVEN_SEQK_BLOCK = even_seqk_block,
     )
     return out
 

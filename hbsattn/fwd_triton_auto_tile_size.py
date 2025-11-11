@@ -209,7 +209,7 @@ def _fwd_kernel(
                         if causal:
                             qk += tl.where(off_m[:, None] - batch_q_start + offset >= off_n[None, :] - batch_k_start, 0, float('-inf'))
                         
-                        if is_last_k_inner_tile_in_batch: 
+                        if not EVEN_SEQK_BLOCK and is_last_k_inner_tile_in_batch: 
                             qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
                         
                         p = tl.exp(qk)
