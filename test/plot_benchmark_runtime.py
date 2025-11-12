@@ -113,9 +113,9 @@ def plot_series(
                 alpha=0.18
             )
 
-    ax.set_xlabel("unit_seqlen (log2 scale)")
-    ax.set_ylabel(metric)
-    ax.set_title(f"{metric} vs unit_seqlen (log2-x, log-y)")
+    ax.set_xlabel("sequence length")
+    ax.set_ylabel("Runtime (s)")
+    # ax.set_title(f"Runtime vs sequence length")
 
     ax.set_xscale("log", base=2)
     ax.set_yscale("log")

@@ -1,0 +1,117 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Distribution / packaging #
+############################
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports #
+#################################
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.pyre/
+.pytype/
+
+# Environments #
+################
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook #
+####################
+.ipynb_checkpoints
+
+# PyCharm #
+###########
+.idea/
+
+# VS Code #
+###########
+.vscode/
+
+# Mac OS #
+##########
+.DS_Store
+
+# Windows #
+###########
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Others #
+##########
+*.log
+*.pot~
+*.swp
+*.swo
+*~
+
+# MyPy #
+########
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pyright
+#########
+.pyright/
+
+# Local secrets (add your own secrets files or sensitive config patterns here)
+secrets.*
+config.yaml
+config.yml
+
+# C/C++ #
+#########
+*.dSYM/
+*.ipch/
+*.pdb
+*.obj
+*.pch
+
+
