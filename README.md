@@ -1,11 +1,11 @@
 # Heterogeneous Block Sparse Attention Kernel
 
-This repository provides a high-performance **Block Sparse Attention** kernel for PyTorch, implemented with **Triton** for GPU acceleration. The kernel is designed for efficient processing of long sequences by doing attention only on the query and key blocks allowed by the user.
+This repository provides a high-performance **Block Sparse Attention** kernel for PyTorch, implemented with **Triton** for GPU acceleration. The kernel is designed for efficient processing of long sequences by doing attention only on the query and key blocks allowed by the user (i.e., allowed by a given `block_mask`).
 
 ## Features
 
 - **Heterogeneous**: allows `q_block_size != k_block_size` as long as both are integer multiples of 16.
-- **Variable length**: supports variable-length query, key, and value inputs, and allows query and key to have different lengths, i.e., `cu_q_seqlens != cu_k_seqlens`.
+- **Variable length**: supports variable-length query, key, and value inputs, and allows query and key to have different lengths, i.e., `cu_q_seqlens != cu_k_seqlens`. When they are not equal, we follow the convetion of alignment to right bottom. Please refer to the [Changelog 2.1 of FlashAttention](https://github.com/Dao-AILab/flash-attention/tree/main).
 - **Causality**: supports both `causal` and `noncausal` modes.
 - **Group query attention**: allows `nhead_q % nhead_k == 0`.
 
@@ -25,7 +25,7 @@ Our code primarily relies on [torch](https://pytorch.org/get-started/locally/) a
 
 ## Basic Usage
 
-Here's a minimal example of how to use the block sparse attention kernel in your PyTorch code.
+Here's a minimal example of how to use our block sparse attention kernel in your PyTorch code.
 
 ```python
 
@@ -35,6 +35,7 @@ from hbsattn.utils import calculate_blocks
 
 device = torch.cuda.current_device()
 dtype = torch.bfloat16
+
 # q_block_size and k_block_size need to be integer multiples of 16.
 q_block_size = 32
 k_block_size = 16
@@ -45,16 +46,16 @@ nhead_k = 2
 headdim = 32
 
 # Example of q/k/v input initialization; in most cases cu_k_seqlens == cu_q_seqlens
-# cu_k_seqlens[1:]-cu_k_seqlens[:-1] indicated the sequence length of each sample.
+# cu_k_seqlens[1:]-cu_k_seqlens[:-1] indicate the sequence length of each sample.
 cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device)
 cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) 
 
 # This example has batch_size = 5:
-# Sample 0: q_seqlen = 32 (1 blocks), k_seqlen=32 (2 blocks)
-# Sample 1: q_seqlen = 32 (1 blocks), k_seqlen=29 (2 blocks, last block has 13 Keys)
-# Sample 2: q_seqlen = 32 (1 blocks), k_seqlen=39 (3 blocks, last block has 7 Keys)
-# Sample 3: q_seqlen = 32 (1 blocks), k_seqlen=34 (3 blocks, last block has 2 Keys)
-# Sample 4: q_seqlen = 32 (1 blocks), k_seqlen=23 (2 blocks, last block has 7 Keys)
+# Sample 0: q_seqlen = 32 (1 block), k_seqlen=32 (2 blocks)
+# Sample 1: q_seqlen = 32 (1 block), k_seqlen=29 (2 blocks, last block has 13 Keys)
+# Sample 2: q_seqlen = 32 (1 block), k_seqlen=39 (3 blocks, last block has 7 Keys)
+# Sample 3: q_seqlen = 32 (1 block), k_seqlen=34 (3 blocks, last block has 2 Keys)
+# Sample 4: q_seqlen = 32 (1 block), k_seqlen=23 (2 blocks, last block has 7 Keys)
 
 # Thus, total q_blocks: 5, total k_blocks: 12.
 num_q_block = 5
@@ -73,7 +74,7 @@ softmax_scale = None # use defaulty value
 
 
 # The user should provide a block_mask of shape (nheads_k, num_q_block, num_q_block). 
-# Here is a random example of sparsiety 30%.
+# Here is a random example of sparsity 30%.
 block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
 
 output = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale)
@@ -85,8 +86,8 @@ Note that we assume the users should provide the `block_mask` correctly of the s
 
 ```python
 from hbsattn.utils import calculate_blocks
-num_q_block, _* = calculate_blocks(cu_q_seqlens, q_block_size)
-num_k_block, _* = calculate_blocks(cu_k_seqlens, k_block_size)
+num_q_block, *_ = calculate_blocks(cu_q_seqlens, q_block_size)
+num_k_block, *_ = calculate_blocks(cu_k_seqlens, k_block_size)
 ```
 
 ---
