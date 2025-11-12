@@ -8,6 +8,7 @@ This repository provides a high-performance **Block Sparse Attention** kernel fo
 - **Variable length**: supports variable-length query, key, and value inputs, and allows query and key to have different lengths, i.e., `cu_q_seqlens != cu_k_seqlens`. When they are not equal, we follow the convetion of alignment to right bottom. Please refer to the [Changelog 2.1 of FlashAttention](https://github.com/Dao-AILab/flash-attention/tree/main).
 - **Causality**: supports both `causal` and `noncausal` modes.
 - **Group query attention**: allows `nhead_q % nhead_k == 0`.
+- Only support foward calculation for now.
 
 ---
 
