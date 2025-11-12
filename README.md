@@ -118,7 +118,7 @@ We use the script `test/test_accuracy.py` to compare against the following basel
 2. [Flexattention](https://pytorch.org/blog/flexattention/) (built in PyTorch '2.6.0+cu126'): use the `mask_mod` function to mimic block sparse attention.
 3. [block_sparse_attn](https://github.com/mit-han-lab/Block-Sparse-Attention) from Han Lab: a CUDA implementation with `q_block_size = k_block_size = 128` fixed.
 
-We mostly test under the same conditions as `block_sparse_attn`: We choose `q_block_size = k_block_size = 128`, `headdim = 128`, `nheads = 32`, and `batch_size = 8`. The `sequence length` is varied from `2^7 = 128` to `2^16 ≈ 64K`, changing the sparsity ratio, and causality.
+We mostly test under the same conditions as `block_sparse_attn`: We choose `q_block_size = k_block_size = 128`, `headdim = 128`, `nheads = 32`, and `batch_size = 8`. The `sequence length` is varied from `2^7 = 128` to `2^16 ≈ 64K`, changing the sparsity ratio, and causality. The following results are reported with 15 repeated runs and the first 5 as warmup.
 
 <p align="center">
   <img src="assets/causal_sparse0.9.png" alt="Causal, sparse=0.9" width="48%" style="display:inline-block; vertical-align:middle; margin-right:10px;">
