@@ -307,7 +307,4 @@ def _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_b
         EVEN_SEQ_KBLOCK=EVEN_SEQ_KBLOCK,
     )
     
-    best_cfg = _fwd_kernel.best_config
-    print(f"[Autotune Result]  num_warps={best_cfg.num_warps}, num_stages={best_cfg.num_stages}")
-
     return out
