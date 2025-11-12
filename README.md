@@ -28,12 +28,13 @@ Our code primarily relies on [torch](https://pytorch.org/get-started/locally/) a
 Here's a minimal example of how to use the block sparse attention kernel in your PyTorch code.
 
 ```python
+
 import torch
 from hbsattn import HBSAttention
 from hbsattn.utils import calculate_blocks
 
 device = torch.cuda.current_device()
-
+dtype = torch.bfloat16
 # q_block_size and k_block_size need to be integer multiples of 16.
 q_block_size = 32
 k_block_size = 16
@@ -57,7 +58,7 @@ cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, devic
 
 # Thus, total q_blocks: 5, total k_blocks: 12.
 num_q_block = 5
-num_k_block = 2
+num_k_block = 12
 
 q_seqlen = cu_q_seqlens[-1].item()
 k_seqlen = cu_k_seqlens[-1].item()
@@ -65,7 +66,6 @@ k_seqlen = cu_k_seqlens[-1].item()
 q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
 k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype) 
 v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
-
 
 
 causal = True # or False
@@ -77,6 +77,8 @@ softmax_scale = None # use defaulty value
 block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
 
 output = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale)
+
+print(output.shape)
 ```
 
 Note that we assume the users should provide the `block_mask` correctly of the shape `(nheads_k, num_q_block, num_q_block)`. In the above example, we manually calculate the variables `num_q_block` and `num_q_block`. For general cases, we provide a function for that purpose:
