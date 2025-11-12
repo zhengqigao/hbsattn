@@ -96,13 +96,14 @@ num_k_block, *_ = calculate_blocks(cu_k_seqlens, k_block_size)
 
 ### Accuracy Validation
 
-We provide several reference implementations in `hbsattn/reference.py`, and a pytest file `test/test_accuracy.py` to verify accuracy. You can run them as follows:
+We provide several reference implementations in `hbsattn/reference.py`, and a pytest file `test/test_accuracy.py` to validate accuracy. You can run it as follows:
 
 ```bash
-# tile-mode-auto supports q/k_block_size being integer multiples of 16.
+# tile_mode='auto' supports q/k_block_size being integer multiples of 16.
+# By defaulty, hbasttn calls tile_mode='auto'
 pytest -v -k "tile_mode_auto" test/test_accuracy.py
 
-# tile-mode-fix only supports q/k_block_size as a power of 2.
+# tile_mode='fix' only supports q/k_block_size as a power of 2.
 pytest -v -k "tile_mode_fix and not q_block_size_80" test/test_accuracy.py
 ```
 
@@ -112,11 +113,11 @@ The above two commands will automatically run combinations of different configur
 
 We compare against the following baselines on an Nvidia H200 with CUDA version 12.4:
 
-1. [Flashattention](https://www.google.com/search?client=safari&rls=en&q=Flashattention&ie=UTF-8&oe=UTF-8) (version: 2.7.4.post1): provides a reference for the runtime of a full dense self-attention at the same sequence length.
-2. [Flexattention](https://pytorch.org/blog/flexattention/) (built in PyTorch '2.6.0+cu126'): with a `mask_mod` function that can easily mimic block sparse attention.
-3. [block_sparse_attn from Han Lab](https://github.com/mit-han-lab/Block-Sparse-Attention): a CUDA implementation with `q_block_size = k_block_size = 128` fixed.
+1. [Flashattention](https://www.google.com/search?client=safari&rls=en&q=Flashattention&ie=UTF-8&oe=UTF-8) (version: 2.7.4.post1): provides a runtiem reference of a full dense attention.
+2. [Flexattention](https://pytorch.org/blog/flexattention/) (built in PyTorch '2.6.0+cu126'): use the `mask_mod` function to mimic block sparse attention.
+3. [block_sparse_attn](https://github.com/mit-han-lab/Block-Sparse-Attention) from Han Lab: a CUDA implementation with `q_block_size = k_block_size = 128` fixed.
 
-We test under the same conditions as `block_sparse_attn`. We choose `q_block_size = k_block_size = 128`, `headdim = 128`, `nheads = 32`, and `batch_size = 8`. The `sequence length` is varied from `2^7 = 128` to `2^16 ≈ 64K`, changing the sparsity ratio and causality.
+We mostly test under the same conditions as `block_sparse_attn`: We choose `q_block_size = k_block_size = 128`, `headdim = 128`, `nheads = 32`, and `batch_size = 8`. The `sequence length` is varied from `2^7 = 128` to `2^16 ≈ 64K`, changing the sparsity ratio, and causality.
 
 <p align="center">
   <img src="assets/causal_sparse0.9.png" alt="Causal, sparse=0.9" width="48%" style="display:inline-block; vertical-align:middle; margin-right:10px;">
@@ -131,8 +132,11 @@ We test under the same conditions as `block_sparse_attn`. We choose `q_block_siz
   <img src="assets/nocausal_sparse0.7.png" alt="Noncausal, sparse=0.7" width="48%" style="display:inline-block; vertical-align:middle;">
 </p>
 <p align="center">
-  <em>Figure 2: Runtime comparison of different attention implementations in <b>non-causal (bidirectional) mode</b>. Left: sparse ratio = 0.9; Right: sparse ratio = 0.7. (Batch = 8, nheads = 32, headdim = 128, block_size = 128.)</em>
+  <em>Figure 2: Runtime comparison of different attention implementations in <b>non-causal mode</b>. Left: sparse ratio = 0.9; Right: sparse ratio = 0.7. (Batch = 8, nheads = 32, headdim = 128, block_size = 128.)</em>
 </p>
+
+**Conclusions**: It is clear from the figure that our Triton implementation `hbsattn` is very close to the CUDA implementation `block_sparse_attn`.
+
 
 ---
 
@@ -143,11 +147,13 @@ Our implementation is inspired by:
 1. [block_sparse_attn from Han Lab](https://github.com/mit-han-lab/Block-Sparse-Attention)
 2. [Triton implementation of FlashAttention](https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/flash_attn_triton.py)
 
+I would also like to acknowledge the discussion with Tianyuan Zhang, Guanxuan Xiao, and Junxian Guo.
+
 ---
 
 ## TODO
 
-The following are tasks that readily come to mind, though it is unclear how much demand there is for them. Please open an issue if you are interested, and I may work on it.
+The following are tasks that readily come to mind, though it is unclear how much demand there is for them (Backward implementation might be the most needed?) Please open an issue if you are interested, and I may work on it.
 
 - [ ] Implement Triton backward kernel for HBSAttention (autograd support)
 - [ ] Add tests for backward (gradient) correctness in `test/test_accuracy.py`
