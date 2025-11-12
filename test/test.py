@@ -206,3 +206,5 @@ softmax_scale = None # use defaulty value
 block_mask = (torch.rand(nhead_k, num_q_block, num_k_block, device=device) < 0.7).to(torch.bool)
 
 output = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale)
+
+print(output.shape)
