@@ -143,7 +143,7 @@ We mostly test under the same conditions as `block_sparse_attn`: We choose `q_bl
 
 ## Acknowledgements
 
-Our implementation is inspired by the following repos. Note that previous existing block sparse attention implementation have different emphasis, and to the best of my understanding, ours is the only provide `q_block_size!=k_block_size`.
+Our implementation is inspired by the following repos. Note that previous existing block sparse attention implementation have different emphasis, so please choose according to your need.
 
 1. [block_sparse_attn from Han Lab](https://github.com/mit-han-lab/Block-Sparse-Attention)
 2. [Triton implementation of FlashAttention](https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/flash_attn_triton.py)
