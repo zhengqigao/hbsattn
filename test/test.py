@@ -162,7 +162,7 @@ from hbsattn import HBSAttention
 from hbsattn.utils import calculate_blocks
 
 device = torch.cuda.current_device()
-
+dtype = torch.bfloat16
 # q_block_size and k_block_size need to be integer multiples of 16.
 q_block_size = 32
 k_block_size = 16
