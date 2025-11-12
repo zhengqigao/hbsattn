@@ -196,7 +196,6 @@ k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 v = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
 
-
 causal = True # or False
 softmax_scale = None # use defaulty value
 
