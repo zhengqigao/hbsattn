@@ -83,7 +83,22 @@ We compare with the following baslines on Nvidia H200 with CUDA version 12.4:
 
 We test under the same condition as `block_sparse_attn`. We choose `q_block_size=k_block_size=128`, use `headdim=128`, and `nheads=32`, and `batch_size=8`. We vary `sequence length` from `2^7=128` to `2^16 ~= 64K`, the sparsity ratio, and casuality.
 
-![Runtime Benchmark Figure](assets/causal_sparse0.9.png)
+<p align="center">
+  <img src="assets/causal_sparse0.9.png" alt="Causal, sparse=0.9" width="48%" style="display:inline-block; vertical-align:middle; margin-right:10px;">
+  <img src="assets/causal_sparse0.7.png" alt="Causal, sparse=0.7" width="48%" style="display:inline-block; vertical-align:middle;">
+</p>
+<p align="center">
+  <em>Figure 1: Runtime comparison of different attention implementations under <b>causal mode</b>. Left: sparse ratio = 0.9; Right: sparse ratio = 0.7. (Batch=8, nheads=32, headdim=128, block_size=128.)</em>
+</p>
+
+<p align="center">
+  <img src="assets/nocausal_sparse0.9.png" alt="Noncausal, sparse=0.9" width="48%" style="display:inline-block; vertical-align:middle; margin-right:10px;">
+  <img src="assets/nocausal_sparse0.7.png" alt="Noncausal, sparse=0.7" width="48%" style="display:inline-block; vertical-align:middle;">
+</p>
+<p align="center">
+  <em>Figure 2: Runtime comparison of different attention implementations under <b>non-causal (bidirectional) mode</b>. Left: sparse ratio = 0.9; Right: sparse ratio = 0.7. (Batch=8, nheads=32, headdim=128, block_size=128.)</em>
+</p>
+
 
 
 ---
