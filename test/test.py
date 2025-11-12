@@ -186,7 +186,7 @@ cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, devic
 
 # Thus, total q_blocks: 5, total k_blocks: 12.
 num_q_block = 5
-num_k_block = 2
+num_k_block = 12
 
 q_seqlen = cu_q_seqlens[-1].item()
 k_seqlen = cu_k_seqlens[-1].item()
