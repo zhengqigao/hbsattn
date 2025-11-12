@@ -16,8 +16,8 @@ This repository provides a high-performance **Block Sparse Attention** kernel fo
 Our code primarily relies on [torch](https://pytorch.org/get-started/locally/) and [triton](https://triton-lang.org/main/index.html). For your reference, our code is developed with torch '2.6.0+cu126' and triton '3.2.0', but other versions should also work. After installing torch and triton, please run the following commands:
 
 ```bash
-   git clone https://github.com/zhengqigao/hbsattention.git
-   cd hbsattention
+   git clone https://github.com/zhengqigao/hbsattn.git
+   cd hbsattn
    pip install -e . # install as editable
 ```
 
