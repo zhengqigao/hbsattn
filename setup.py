@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="hbsattn",
-    version="0.1.0",
+    version="0.0.1",
     description="Block-sparse attention with heterogenoues block size",
     author="Zhengqi Gao",
     author_email="zhengqi@mit.edu",
