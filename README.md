@@ -64,8 +64,11 @@ output = HBSAttention(
 We have provided several reference implementations in `hbsattn/reference.py`, and a pytest file `test/test_accuracy.py` to confirm the accuracy. It can be run with the command:
 
 ```bash
-pytest -v -k "tile_mode_auto" test/test_accuracy.py # tile-mode-auto supports q/k_block_size beining integer multiples of 16.
-pytest -v -k "tile_mode_fix and not q_block_size_80" test/test_accuracy.py # tile-mode-fix only support q/k_block_size = power of 2. 
+# tile-mode-auto supports q/k_block_size beining integer multiples of 16.
+pytest -v -k "tile_mode_auto" test/test_accuracy.py
+
+# tile-mode-fix only support q/k_block_size = power of 2. 
+pytest -v -k "tile_mode_fix and not q_block_size_80" test/test_accuracy.py 
 ```
 
 The above two commands will automatically run the combinations of different configurations defined in `test/test_accuracy.py` to confirm our implementation is close to the pytorch baseline.
@@ -74,37 +77,32 @@ The above two commands will automatically run the combinations of different conf
 
 We compare with the following baslines on Nvidia H200 with CUDA version 12.4:
 
-1. Flashattention (version: 2.7.4.post1): provide a reference on the runtime of a full dense self-attention at the same sequence length.
+1. [Flashattention](https://www.google.com/search?client=safari&rls=en&q=Flashattention&ie=UTF-8&oe=UTF-8) (version: 2.7.4.post1): provide a reference on the runtime of a full dense self-attention at the same sequence length.
 2. [Flexattention](https://pytorch.org/blog/flexattention/) (built in Pytorch '2.6.0+cu126'): with a `mask_mod` function can easily mimic a block sparse attention.
 3. [block_sparse_attn from Han Lab](https://github.com/mit-han-lab/Block-Sparse-Attention): A CUDA implemenation fix `q_block_size=k_block_size=128`.
 
+We test under the same condition as `block_sparse_attn`. We choose `q_block_size=k_block_size=128`, use `headdim=128`, and `nheads=32`, and `batch_size=8`. We vary `sequence length` from `2^7=128` to `2^16 ~= 64K`, the sparsity ratio, and casuality.
 
+![Runtime Benchmark Figure](assets/causal_sparse0.9.png)
 
-
---- 
-
-## File Overview
-
-- **hbsattn/hbsa_interface.py**
-  - Main entry point. Defines the `HBSAttention` interface (via autograd.Function).
-- **hbsattn/fwd_triton_fix_tile_size.py**
-  - Implementation for fixed tiles (blocks) kernel using Triton.
-- **hbsattn/fwd_triton_auto_tile_size.py**
-  - Implementation for auto-tuned tile size kernel.
-- **hbsattn/utils.py**
-  - Utility functions for calculating block and batch indices, etc.
-- **hbsattn/reference.py**
-  - Reference Python implementations for validation and testing.
 
 ---
 
 ## Acknowledgements
 
-Block sparse layout and kernel concepts inspired by research projects such as [MoBA](https://github.com/MoonshotAI/MoBA) and [FlashAttention].
+Our implementation is inspired by:
+
+1. [block_sparse_attn from Han Lab](https://github.com/mit-han-lab/Block-Sparse-Attention)
+2. [Triton implementation of FlashAttention](https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/flash_attn_triton.py)
 
 ---
 
-## License
+## TODO
 
-See `LICENSE` file for usage and licensing details.
+The following ones are easily come to mind, but not sure how much needs are there. Please open an issue and I might work on it.
+
+- [ ] Implement Triton backward kernel for HBSAttention (autograd support)
+- [ ] Add tests for backward (gradient) correctness in `test/test_accuracy.py`
+- [ ] Add support for arbitaray block size (currently only support integer multiples of 16)
+
 
