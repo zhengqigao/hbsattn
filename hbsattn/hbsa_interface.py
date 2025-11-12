@@ -18,7 +18,7 @@ class _HBSAttentionFunction(torch.autograd.Function):
         print(block_mask.shape)
         print(k.shape)
         assert block_mask.dtype == torch.bool, "block_mask must be a boolean tensor"
-        assert block_mask.shape == (k.shape[1], num_q_block, num_k_block), "block_mask must be a boolean tensor of shape (nheads_k, num_q_block, num_k_block)"
+        assert block_mask.shape == (k.shape[1], num_q_block, num_k_block), f"block_mask must be a boolean tensor of shape (nheads_k, num_q_block, num_k_block) = ({k.shape[1]}, {num_q_block}, {num_k_block})"
         
         if tile_mode == 'auto': # the kernel will be lanunched with tile size automatically determined.
             return _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
