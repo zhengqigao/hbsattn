@@ -155,7 +155,7 @@ I would also like to acknowledge the discussion with Tianyuan Zhang, Guanxuan Xi
 
 The following are tasks that readily come to mind, though it is unclear how much demand there is for them (Backward implementation might be the most needed?) Please open an issue if you are interested, and I may work on it.
 
-- [ ] Implement Triton backward kernel for HBSAttention (autograd support)
-- [ ] Add tests for backward (gradient) correctness in `test/test_accuracy.py`
-- [ ] Add support for arbitrary block size (currently only integer multiples of 16 are supported)
+- [ ] Implement Triton backward kernel for HBSAttention (autograd support).
+- [ ] Add tests for backward (gradient).
+- [ ] Add support for arbitrary block size (currently only integer multiples of 16 are supported).
 
