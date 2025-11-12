@@ -15,8 +15,7 @@ class _HBSAttentionFunction(torch.autograd.Function):
             num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
         if num_k_block is None or cu_k_block is None or k_block_to_batch is None or cu_num_k_block is None:
             num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block = calculate_blocks(cu_k_seqlens, k_block_size)
-        print(block_mask.shape)
-        print(k.shape)
+
         assert block_mask.dtype == torch.bool, "block_mask must be a boolean tensor"
         assert block_mask.shape == (k.shape[1], num_q_block, num_k_block), f"block_mask must be a boolean tensor of shape (nheads_k, num_q_block, num_k_block) = ({k.shape[1]}, {num_q_block}, {num_k_block})"
         
