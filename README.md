@@ -111,7 +111,7 @@ The above two commands will automatically run combinations of different configur
 
 ### Runtime Validation
 
-We compare against the following baselines on an Nvidia H200 with CUDA version 12.4:
+We use the script `test/test_accuracy.py` to compare against the following baselines on an Nvidia H200 with CUDA version 12.4:
 
 1. [Flashattention](https://www.google.com/search?client=safari&rls=en&q=Flashattention&ie=UTF-8&oe=UTF-8) (version: 2.7.4.post1): provides a runtiem reference of a full dense attention.
 2. [Flexattention](https://pytorch.org/blog/flexattention/) (built in PyTorch '2.6.0+cu126'): use the `mask_mod` function to mimic block sparse attention.
