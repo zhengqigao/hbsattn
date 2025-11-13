@@ -218,11 +218,10 @@ def _fwd_kernel(
         tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-def _scheduling(block_mask, cu_q_block, batch_size, grouping_function):
+def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
     num_block_per_group = 1
     
     nhead, num_q_block, num_k_block = block_mask.shape
-    assert torch.all((cu_q_block[1:] - cu_q_block[:-1]) % num_block_per_group == 0), "for now, we only support num_block_per_group to be a divisor of block number"
 
     # cu_q_group[batch_idx] = the start q group id of batch idx
     cu_q_group = torch.zeros(
@@ -230,8 +229,7 @@ def _scheduling(block_mask, cu_q_block, batch_size, grouping_function):
         device=block_mask.device,
         dtype=torch.int32,
     )
-    print(f"cu_q_block: {cu_q_block}, batch_size: {batch_size}")
-    cu_q_group[1:] = torch.ceil((cu_q_block[1:] - cu_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
+    cu_q_group[1:] = torch.ceil((cu_num_q_block[1:] - cu_num_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
     num_q_group = cu_q_group[-1]
     
     # q_group_to_batch[group_idx] = the batch id of the group idx
@@ -248,8 +246,8 @@ def _scheduling(block_mask, cu_q_block, batch_size, grouping_function):
     for h in range(nhead):
         for q_group in range(num_q_group):
             batch_idx = q_group_to_batch[q_group]
-            q_block_start_idx = cu_q_block[batch_idx]
-            q_block_end_idx = cu_q_block[batch_idx + 1]
+            q_block_start_idx = cu_num_q_block[batch_idx]
+            q_block_end_idx = cu_num_q_block[batch_idx + 1]
             for block in range(num_block_per_group):
                 if q_block_start_idx + q_group * num_block_per_group + block < q_block_end_idx:
                     q_assignment[h, q_group, block] = q_block_start_idx + q_group * num_block_per_group + block
