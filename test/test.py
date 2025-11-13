@@ -44,10 +44,7 @@ if __name__ == "__main__":
     parser.add_argument('--headdim', type=int, default=128)
     parser.add_argument('--unit_seqlen', type=int, default=32)
     parser.add_argument('--nheads', type=int, default=1)
-    parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--save_benchmark_to_file', type=str, default = './test/benchmark_all_results.json')
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
-    parser.add_argument('--golden_ref', action='store_true', default=False)
     parser.add_argument('--num_block_per_group', type=int, default=1, help='the number of blocks per group, used only for hbsattn (scheduling mode)')
     args = parser.parse_args()
         
@@ -59,26 +56,25 @@ if __name__ == "__main__":
     unit_seqlen = args.unit_seqlen
     nhead_k = args.nheads
     nhead_q = args.nheads
-    batch_size = args.batch_size
     num_block_per_group = args.num_block_per_group
     
-    q_block_size = 16 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
+    q_block_size = 16 
     k_block_size = 16
     
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
 
-    cu_k_seqlens = torch.tensor([0, 32, 61, 96, ], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_k_seqlens = torch.tensor([0, 32], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0, 32, 61, 96,], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_q_seqlens = torch.tensor([0, 32], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
-    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
-    v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    v =  torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
     # the following information is needed for our HBSAttention implementation. You don't need to change that, providing cu_q/k_seqlens and q/k_blocksize is enough.
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
@@ -99,18 +95,14 @@ if __name__ == "__main__":
 
     print(f"block_mask: {block_mask}")
     
-    # run once to get a golden reference
-    if args.golden_ref:
-        golden_ref_v1 = HBSAttention(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
-    else:
-        golden_ref_v1 = None
 
-
+    
+    golden_res = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
 
 
     our_auto_result = benchmark({
-                'golden': golden_ref_v1,
+                'golden': golden_res,
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_auto_tilesize'
@@ -119,14 +111,14 @@ if __name__ == "__main__":
 
 
     our_fix_result = benchmark({
-            'golden': golden_ref_v1,
+            'golden': golden_res,
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_fix_tilesize'
         }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
     our_scheduling_result = benchmark({
-            'golden': golden_ref_v1,
+            'golden': golden_res,
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_scheduling'

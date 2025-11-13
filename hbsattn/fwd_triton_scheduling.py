@@ -43,11 +43,13 @@ def _fwd_kernel(
     head_q_to_k_ratio,
     block_mask,
     q_assignment,
+    k_assignment,
     q_group_to_batch,
     cu_q_group,
+    num_block_per_group,
+    num_q_block,
     out,
     lse,
-    tmp, # See flash_attn_trion.py and flash_attn_triton_og.py 
     stride_q_s,
     stride_q_h,
     stride_q_d,
@@ -60,9 +62,12 @@ def _fwd_kernel(
     stride_b_nh,
     stride_b_nq,
     stride_b_nk,
-    stride_assign_nh,
-    stride_assign_ng,
-    stride_assign_nb,
+    stride_q_assignment_nh,
+    stride_q_assignment_ng,
+    stride_q_assignment_nb,
+    stride_k_assignment_nh,
+    stride_k_assignment_ng,
+    stride_k_assignment_nb,
     stride_o_s,
     stride_o_h,
     stride_o_d,
@@ -79,12 +84,19 @@ def _fwd_kernel(
     off_head_q = tl.program_id(1)
     off_head_k = off_head_q // head_q_to_k_ratio
     
-    off_q_block = tl.program_id(0)
+    off_q_group = tl.program_id(0)
     off_dim = tl.arange(0, BLOCK_DIM)
+
+    off_block_m = tl.arange(0, BLOCK_M)
+    off_block_n = tl.arange(0, BLOCK_N)
     
-    start_m = tl.load(cu_q_block + off_q_block)
-    end_m = tl.load(cu_q_block + off_q_block + 1)
-    off_m = start_m + tl.arange(0, BLOCK_M)
+    q_assignment_ptr = q_assignment + off_head_q * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + tl.arange(0, num_block_per_group)
+    off_q_block = tl.load(q_assignment_ptr) # shape (num_block_per_group,)
+    start_m_index = tl.load(cu_q_block + off_q_block)
+    end_m_index = tl.load(cu_q_block + off_q_block + 1)
+    
+    end_m = tl.reshape(end_m_index[:,None] + tl.zeros([num_block_per_group, BLOCK_M], dtype=tl.int32), num_block_per_group * BLOCK_M)
+    off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], num_block_per_group * BLOCK_M)
     
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
@@ -101,14 +113,13 @@ def _fwd_kernel(
     
 
     # accumulator
-    m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
-    l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
-    acc = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
+    m_i = tl.zeros([BLOCK_M * num_block_per_group], dtype=tl.float32) - float('inf')
+    l_i = tl.zeros([BLOCK_M * num_block_per_group], dtype=tl.float32)
+    acc = tl.zeros([BLOCK_M * num_block_per_group, BLOCK_DIM], dtype=tl.float32)
     
-    # tmp_ptr = tmp + off_head_q * stride_lse_h + off_m * stride_lse_s
-    
+
     # batch index 
-    batch_idx = tl.load(q_block_to_batch + off_q_block)
+    batch_idx = tl.load(q_group_to_batch + off_q_group)
     
     # get offset and q and k start/end indices in seq
     batch_q_start_idx = tl.load(cu_q_seqlens + batch_idx)
@@ -127,7 +138,12 @@ def _fwd_kernel(
         # We only need to enter the calulcation if two conditions are met:
         # 1. the block mask is True
         # 2. causal = False; or when causal = True && the end of the q block is after the start of the k block.
-        if tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk) and (not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx):
+        # and (not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx)
+        cond1 = tl.load(k_assignment + off_head_k * stride_k_assignment_nh + off_q_group * stride_k_assignment_ng + off_k_block)
+        cond2 = not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx
+        mask = tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk)
+        mask = tl.reshape(mask[:,None] + tl.zeros([num_block_per_group, BLOCK_M], dtype=tl.bool), num_block_per_group * BLOCK_M)
+        if cond1 and cond2:
             
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
@@ -160,7 +176,7 @@ def _fwd_kernel(
                                     other=0.0)
             
             # Core part: online Softmax
-            qk = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
+            qk = tl.zeros([BLOCK_M * num_block_per_group, BLOCK_N], dtype=tl.float32)
             qk += tl.dot(q_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
             qk *= softmax_scale
 
@@ -173,15 +189,13 @@ def _fwd_kernel(
             if not EVEN_SEQ_KBLOCK and start_n + BLOCK_N > end_n: 
                 qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
             
+            qk += tl.where(mask[:,None], 0, float('-inf'))
+            
             p = tl.exp(qk)
             
             l_ij = tl.sum(p, 1)
             alpha = tl.exp(m_i - m_ij)
             
-            # Original flashattention here stores and immediately loads, but it seems not necessary in my testing.
-            # tl.store(tmp_ptr, alpha, mask = off_m < end_m)
-            # alpha = tl.load(tmp_ptr, mask = off_m < end_m)
-            # 
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
             p = p.to(v.type.element_ty)
@@ -191,9 +205,7 @@ def _fwd_kernel(
             m_i = m_ij
 
     l_i = tl.where(l_i == 0, 1, l_i) # might be a working trick for the case when l_i is not updated at all. 
-    l_recip = 1 / l_i
-    # tl.store(tmp_ptr, l_recip, mask = off_m < end_m)
-    # l_recip = tl.load(tmp_ptr, mask = off_m < end_m)
+    l_recip = 1 / l_i   
     acc = acc * l_recip[:,None]
     acc = acc.to(out.dtype.element_ty)
     
@@ -241,6 +253,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
     # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
+    # q_assignment shape (nhead, num_q_group, num_block_per_group)
     q_assignment = schedule_func(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
 
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
@@ -277,11 +290,10 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
     
-    
-    out = torch.empty_like(q).contiguous()
-    lse = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
-    tmp = torch.empty((seq_len_q, nhead_q), device=q.device, dtype=torch.float32)
-    
+    # the appended last q_block_size rows are dummy rows for the kernel to excute without boundary issues; will not be returned.
+    out = torch.empty((seq_len_q + q_block_size, nhead_q, headdim), device=q.device, dtype=torch.float32).contiguous()
+    lse = torch.empty((seq_len_q + q_block_size, nhead_q), device=q.device, dtype=torch.float32).contiguous()
+
     EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
@@ -289,7 +301,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group)
     print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
     # launch kernel
-    grid = (num_q_block, nhead_q)
+    grid = (num_q_group, nhead_q)
 
     _fwd_kernel[grid](
         q,
@@ -306,16 +318,19 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
         head_q_to_k_ratio,
         block_mask,
         q_assignment,
+        k_assignment,
         q_group_to_batch,
         cu_num_q_group,
+        num_block_per_group,
+        num_q_block,
         out,
         lse,
-        tmp,
         *q.stride(),
         *k.stride(),
         *v.stride(),
         *block_mask.stride(),
         *q_assignment.stride(),
+        *k_assignment.stride(),
         *out.stride(),
         *lse.stride(),
         headdim,
@@ -326,6 +341,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
         EVEN_SEQ_QBLOCK = EVEN_SEQ_QBLOCK,
         EVEN_SEQ_KBLOCK = EVEN_SEQ_KBLOCK,
     )
-    
+    out = out[:seq_len_q,]
+    lse = lse[:seq_len_q]
     return out
 
