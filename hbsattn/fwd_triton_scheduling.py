@@ -221,9 +221,9 @@ def _fwd_kernel(
             tl.store(out_ptr, acc, mask=off_dim[None, :] < headdim)
     else:
         if EVEN_HEADDIM:
-            tl.store(out_ptr, acc, mask=off_m[:, None] < end_m)
+            tl.store(out_ptr, acc, mask=off_m[:, None] < end_m[:,None])
         else:
-            tl.store(out_ptr, acc, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim))
+            tl.store(out_ptr, acc, mask=(off_m[:, None] < end_m[:,None]) & (off_dim[None, :] < headdim))
 
     off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
 
