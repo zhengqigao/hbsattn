@@ -242,7 +242,8 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
     q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
     
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
-    q_assignment = -1 * torch.ones((nhead, num_q_group, num_block_per_group), device=block_mask.device, dtype=torch.int32)
+    # Use `num_q_block` as the padding invalid index (it's out of bounds)
+    q_assignment = num_q_block * torch.ones((nhead, num_q_group, num_block_per_group), device=block_mask.device, dtype=torch.int32)
 
     # a temporary placehoder, just group consecutive block together into a group for now.
     for q_group in range(num_q_group):
@@ -254,16 +255,23 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
             if q_block_start_idx + q_group_index_real * num_block_per_group + block < q_block_end_idx:
                 q_assignment[:, q_group, block] = q_block_start_idx + q_group_index_real * num_block_per_group + block
 
-    # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
-    k_assignment = torch.zeros((nhead, num_q_group, num_k_block), device=block_mask.device, dtype=torch.bool)
+    # Extend block_mask with a dummy row of all False for invalid indices
+    block_mask_extended = torch.cat([
+        block_mask,
+        torch.zeros(nhead, 1, num_k_block, device=block_mask.device, dtype=torch.bool)
+    ], dim=1)  # [nhead, num_q_block + 1, num_k_block]
     
-    for head_idx in range(nhead):
-        for q_group in range(num_q_group):
-            all_q_blocks_in_group = q_assignment[head_idx, q_group, :]
-            for j in all_q_blocks_in_group:
-                if j >=0: # -1 is the padding value
-                    k_index = torch.where(block_mask[head_idx, j, :])[0]
-                    k_assignment[head_idx, q_group, k_index] = True
+    # Now we can safely index with q_assignment (num_q_block maps to the dummy row)
+    head_idx = torch.arange(nhead, device=block_mask.device).view(-1, 1, 1)
+    
+    # gathered_masks[h, g, b, k] = block_mask_extended[h, q_assignment[h, g, b], k]
+    gathered_masks = block_mask_extended[
+        head_idx.expand(nhead, num_q_group, num_block_per_group),
+        q_assignment
+    ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
+    
+    # Reduce across num_block_per_group dimension
+    k_assignment = gathered_masks.any(dim=2)  # [nhead, num_q_group, num_k_block]
                 
     return num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
