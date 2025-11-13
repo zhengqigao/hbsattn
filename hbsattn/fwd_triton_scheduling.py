@@ -303,7 +303,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
         block_mask,
         q_assignment,
         q_group_to_batch,
-        cu_q_group,
+        cu_num_q_group,
         out,
         lse,
         tmp,
