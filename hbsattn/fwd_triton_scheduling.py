@@ -294,8 +294,8 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
     
     # the appended last q_block_size rows are dummy rows for the kernel to excute without boundary issues; will not be returned.
-    out = torch.empty((seq_len_q + q_block_size, nhead_q, headdim), device=q.device, dtype=torch.float32).contiguous()
-    lse = torch.empty((seq_len_q + q_block_size, nhead_q), device=q.device, dtype=torch.float32).contiguous()
+    out = torch.empty((seq_len_q + q_block_size, nhead_q, headdim), device=q.device, dtype=q.dtype).contiguous()
+    lse = torch.empty((seq_len_q + q_block_size, nhead_q), device=q.device, dtype=q.dtype).contiguous()
 
     EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
