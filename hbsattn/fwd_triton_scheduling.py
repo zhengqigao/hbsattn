@@ -142,6 +142,7 @@ def _fwd_kernel(
         cond1 = tl.load(k_assignment + off_head_k * stride_k_assignment_nh + off_q_group * stride_k_assignment_ng + off_k_block)
         tl.device_print("cond1", cond1)
         cond2 = not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx
+        tl.device_print("cond2", cond2)
         mask = tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk)
         mask = tl.reshape(mask[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1), NUM_BLOCK_PER_GROUP * BLOCK_M)
         
