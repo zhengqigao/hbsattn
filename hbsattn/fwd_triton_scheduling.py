@@ -107,7 +107,7 @@ def _fwd_kernel(
             q_block = tl.load(q_ptr, mask=off_dim[None, :] < headdim, other=0.0)
     else:
         if EVEN_HEADDIM:
-            q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m, other=0.0)
+            q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m[:,None], other=0.0)
         else:
             q_block = tl.load(q_ptr, mask=(off_m[:, None] < end_m) & (off_dim[None, :] < headdim), other=0.0)
     
