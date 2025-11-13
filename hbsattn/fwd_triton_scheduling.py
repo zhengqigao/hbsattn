@@ -190,8 +190,8 @@ def _fwd_kernel(
             
             # tl.device_print("qk", qk)
             
-            if causal:
-                qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
+            # if causal:
+            #     qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
             
             if not EVEN_SEQ_KBLOCK and start_n + BLOCK_N > end_n: 
                 qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
