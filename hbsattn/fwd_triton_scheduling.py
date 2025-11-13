@@ -128,14 +128,6 @@ def _fwd_kernel(
     batch_k_end_idx = tl.load(cu_k_seqlens + batch_idx + 1)
     offset = batch_k_end_idx - batch_k_start_idx - (batch_q_end_idx - batch_q_start_idx)
 
-    if off_head_q == 0:
-        tl.device_print("batch_idx", batch_idx)
-        tl.device_print("batch_q_start_idx", batch_q_start_idx)
-        tl.device_print("batch_q_end_idx", batch_q_end_idx)
-        tl.device_print("batch_k_start_idx", batch_k_start_idx)
-        tl.device_print("batch_k_end_idx", batch_k_end_idx)
-        tl.device_print("offset", offset)
-
     # k block loop, start from the same batch as the q block, and end at the last k block in the same batch.
     k_block_start = tl.load(cu_num_k_block + batch_idx)
     k_block_end = tl.load(cu_num_k_block + batch_idx + 1)
@@ -279,7 +271,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
         q_assignment
     ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
-    k_assignment = gathered_masks.any(dim=2)  # [nhead, num_q_group, num_k_block]
+    k_assignment = gathered_masks.any(dim=2).to(torch.bool)  # [nhead, num_q_group, num_k_block]
                 
     return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
