@@ -219,7 +219,7 @@ def _fwd_kernel(
 
 
 def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
-    num_block_per_group = 1
+    num_block_per_group = 2
     
     nhead, num_q_block, num_k_block = block_mask.shape
 
