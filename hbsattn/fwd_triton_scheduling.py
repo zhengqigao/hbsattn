@@ -261,12 +261,9 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
         torch.zeros(nhead, 1, num_k_block, device=block_mask.device, dtype=torch.bool)
     ], dim=1)  # [nhead, num_q_block + 1, num_k_block]
     
-    # Now we can safely index with q_assignment (num_q_block maps to the dummy row)
-    head_idx = torch.arange(nhead, device=block_mask.device).view(-1, 1, 1)
-    
     # gathered_masks[h, g, b, k] = block_mask_extended[h, q_assignment[h, g, b], k]
     gathered_masks = block_mask_extended[
-        head_idx.expand(nhead, num_q_group, num_block_per_group),
+        torch.arange(nhead, device=block_mask.device).view(-1, 1, 1).expand(nhead, num_q_group, num_block_per_group),
         q_assignment
     ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
