@@ -13,7 +13,8 @@ from hbsattn.reference import (
 )
 from hbsattn import HBSAttention
 from hbsattn.utils import calculate_blocks
-
+from hbsattn.schedule import base_schedule
+        
 @pytest.mark.parametrize("causal", [False, True], ids=["causal_False", "causal_True"])
 @pytest.mark.parametrize(
     "nhead_q,nhead_k", 
@@ -26,7 +27,7 @@ from hbsattn.utils import calculate_blocks
 @pytest.mark.parametrize("k_block_size", [16, 32], ids=["k_block_size_16", "k_block_size_32"])
 @pytest.mark.parametrize("k_q_same_seqlen", [True, False], ids=["k_q_same_seqlen_True", "k_q_same_seqlen_False"])
 @pytest.mark.parametrize("headdim", [16, 18], ids=["headdim_16", "headdim_18"])
-@pytest.mark.parametrize("tile_mode", ["auto", "fix"], ids=["tile_mode_auto", "tile_mode_fix"])
+@pytest.mark.parametrize("tile_mode", ["auto", "fix", "scheduling"], ids=["tile_mode_auto", "tile_mode_fix", "tile_mode_schedule"])
 def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_block_size, k_block_size, k_q_same_seqlen, headdim,tile_mode):
     device = torch.cuda.current_device()
 
@@ -36,6 +37,9 @@ def test_attention_configs(causal, nhead_q, nhead_k, softmax_scale, dtype, q_blo
     else:
         cu_k_seqlens = torch.tensor([0, 32, 61, 100, 134, 157], dtype=torch.int32, device=device) 
         cu_q_seqlens = torch.tensor([0, 32, 64, 96, 128, 160], dtype=torch.int32, device=device) 
+    
+    if tile_mode == "scheduling":
+        tile_mode = base_schedule
     
     k_seqlen = cu_k_seqlens[-1].item()
     q_seqlen = cu_q_seqlens[-1].item()
