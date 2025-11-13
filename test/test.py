@@ -72,9 +72,9 @@ if __name__ == "__main__":
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
-    q = torch.ones(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
-    k = torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
-    v =  torch.ones(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    q = torch.randn(q_seqlen, nhead_q, headdim, device=device, dtype=dtype)
+    k = torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
+    v =  torch.randn(k_seqlen, nhead_k, headdim, device=device, dtype=dtype)
 
     # the following information is needed for our HBSAttention implementation. You don't need to change that, providing cu_q/k_seqlens and q/k_blocksize is enough.
     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block = calculate_blocks(cu_q_seqlens, q_block_size)
