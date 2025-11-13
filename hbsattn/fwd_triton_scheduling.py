@@ -46,7 +46,6 @@ def _fwd_kernel(
     k_assignment,
     q_group_to_batch,
     cu_q_group,
-    num_block_per_group,
     num_q_block,
     out,
     lse,
@@ -80,27 +79,24 @@ def _fwd_kernel(
     EVEN_HEADDIM: tl.constexpr,
     EVEN_SEQ_QBLOCK: tl.constexpr,
     EVEN_SEQ_KBLOCK: tl.constexpr,
+    NUM_BLOCK_PER_GROUP: tl.constexpr,
 ):
     off_head_q = tl.program_id(1)
     off_head_k = off_head_q // head_q_to_k_ratio
     
     off_q_group = tl.program_id(0)
     off_dim = tl.arange(0, BLOCK_DIM)
-
-    tl.device_print("off_head_q", off_head_q)
     
     off_block_m = tl.arange(0, BLOCK_M)
     off_block_n = tl.arange(0, BLOCK_N)
     
-    q_assignment_ptr = q_assignment + off_head_q * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + tl.arange(0, num_block_per_group)
-    off_q_block = tl.load(q_assignment_ptr) # shape (num_block_per_group,)
+    q_assignment_ptr = q_assignment + off_head_q * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + tl.arange(0, NUM_BLOCK_PER_GROUP)
+    off_q_block = tl.load(q_assignment_ptr) # shape (NUM_BLOCK_PER_GROUP,)
     start_m_index = tl.load(cu_q_block + off_q_block)
     end_m_index = tl.load(cu_q_block + off_q_block + 1)
     
-    end_m = tl.reshape(end_m_index[:,None] + tl.zeros([num_block_per_group, BLOCK_M], dtype=tl.int32), num_block_per_group * BLOCK_M)
-    off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], num_block_per_group * BLOCK_M)
-    tl.device_print("end_m_index", end_m_index)
-    tl.device_print("start_m_index", start_m_index)
+    end_m = tl.reshape(end_m_index[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
+    off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], NUM_BLOCK_PER_GROUP * BLOCK_M)
     # tl.device_print("off_m", off_m)
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
@@ -117,9 +113,9 @@ def _fwd_kernel(
     
 
     # accumulator
-    m_i = tl.zeros([BLOCK_M * num_block_per_group], dtype=tl.float32) - float('inf')
-    l_i = tl.zeros([BLOCK_M * num_block_per_group], dtype=tl.float32)
-    acc = tl.zeros([BLOCK_M * num_block_per_group, BLOCK_DIM], dtype=tl.float32)
+    m_i = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP], dtype=tl.float32) - float('inf')
+    l_i = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP], dtype=tl.float32)
+    acc = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP, BLOCK_DIM], dtype=tl.float32)
     
 
     # batch index 
@@ -146,7 +142,7 @@ def _fwd_kernel(
         cond1 = tl.load(k_assignment + off_head_k * stride_k_assignment_nh + off_q_group * stride_k_assignment_ng + off_k_block)
         cond2 = not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx
         mask = tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk)
-        mask = tl.reshape(mask[:,None] + tl.zeros([num_block_per_group, BLOCK_M], dtype=tl.int1), num_block_per_group * BLOCK_M)
+        mask = tl.reshape(mask[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1), NUM_BLOCK_PER_GROUP * BLOCK_M)
         
         if cond1 and cond2:    
             end_n = tl.load(cu_k_block + off_k_block + 1)
@@ -180,7 +176,7 @@ def _fwd_kernel(
                                     other=0.0)
             
             # Core part: online Softmax
-            qk = tl.zeros([BLOCK_M * num_block_per_group, BLOCK_N], dtype=tl.float32)
+            qk = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP, BLOCK_N], dtype=tl.float32)
             qk += tl.dot(q_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
             qk *= softmax_scale
 
@@ -327,7 +323,6 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
         k_assignment,
         q_group_to_batch,
         cu_num_q_group,
-        num_block_per_group,
         num_q_block,
         out,
         lse,
@@ -346,6 +341,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
         EVEN_HEADDIM = even_headdim,
         EVEN_SEQ_QBLOCK = EVEN_SEQ_QBLOCK,
         EVEN_SEQ_KBLOCK = EVEN_SEQ_KBLOCK,
+        NUM_BLOCK_PER_GROUP = num_block_per_group,
     )
     out = out[:seq_len_q,]
     lse = lse[:seq_len_q]
