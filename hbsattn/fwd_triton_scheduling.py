@@ -97,7 +97,9 @@ def _fwd_kernel(
     
     end_m = tl.reshape(end_m_index[:,None] + tl.zeros([num_block_per_group, BLOCK_M], dtype=tl.int32), num_block_per_group * BLOCK_M)
     off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], num_block_per_group * BLOCK_M)
-    
+    tl.device_print("end_m_index", end_m_index)
+    tl.device_print("start_m_index", start_m_index)
+    # tl.device_print("off_m", off_m)
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
     if EVEN_SEQ_QBLOCK:
@@ -182,7 +184,9 @@ def _fwd_kernel(
 
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
             qk -= m_ij[:, None]
-            tl.device_print("qk", qk)
+            
+            # tl.device_print("qk", qk)
+            
             if causal:
                 qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
             
