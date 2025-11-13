@@ -258,7 +258,7 @@ def _scheduling(block_mask, cu_q_block, batch_size, grouping_function):
 
 def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, grouping_function, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
-
+    print(f"debug, cu_q_block: {cu_q_block}, cu_num_q_block: {cu_num_q_block}")
     seq_len_q = q.shape[0]
     nhead_q = q.shape[1]
     nhead_k = k.shape[1]
