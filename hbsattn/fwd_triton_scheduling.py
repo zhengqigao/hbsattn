@@ -230,6 +230,7 @@ def _scheduling(block_mask, cu_q_block, batch_size, grouping_function):
         device=block_mask.device,
         dtype=torch.int32,
     )
+    print(f"cu_q_block: {cu_q_block}, batch_size: {batch_size}")
     cu_q_group[1:] = torch.ceil((cu_q_block[1:] - cu_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
     num_q_group = cu_q_group[-1]
     
