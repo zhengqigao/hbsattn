@@ -149,7 +149,7 @@ def _fwd_kernel(
         
         mask = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1) + 1, NUM_BLOCK_PER_GROUP * BLOCK_M)
         
-        if cond1 and cond2:    
+        if True: # cond1 and cond2:    
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
