@@ -64,11 +64,11 @@ if __name__ == "__main__":
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
 
-    cu_k_seqlens = torch.tensor([0, 23], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_k_seqlens = torch.tensor([0, 23,61,83], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_k_seqlen = int((cu_k_seqlens[1:] - cu_k_seqlens[:-1]).max().item())
     k_seqlen = cu_k_seqlens[-1].item()
     
-    cu_q_seqlens = torch.tensor([0, 23], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
+    cu_q_seqlens = torch.tensor([0, 23,61,83], dtype=torch.int32, device=device)  # torch.arange(0,batch_size+1, dtype=torch.int32, device=device) * unit_seqlen
     max_q_seqlen = int((cu_q_seqlens[1:] - cu_q_seqlens[:-1]).max().item())
     q_seqlen = cu_q_seqlens[-1].item()
     
