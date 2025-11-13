@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--nheads', type=int, default=1)
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
     parser.add_argument('--num_block_per_group', type=int, default=1, help='the number of blocks per group, used only for hbsattn (scheduling mode)')
+    parser.add_argument('--block_size', type=int, default=16)
     args = parser.parse_args()
         
     nruns = args.nruns
@@ -59,8 +60,8 @@ if __name__ == "__main__":
     nhead_q = args.nheads
     num_block_per_group = args.num_block_per_group
     batch_size = args.batch_size
-    q_block_size = 16 
-    k_block_size = 16
+    q_block_size = args.block_size
+    k_block_size = args.block_size
     
     device = torch.cuda.current_device()
     dtype = torch.bfloat16
