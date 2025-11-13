@@ -283,7 +283,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
     
-    num_block_per_group, num_q_group, cu_q_group, q_group_to_batch, q_assignment = _scheduling(block_mask, cu_q_block, batch_size, grouping_function)
+    num_block_per_group, num_q_group, cu_q_group, q_group_to_batch, q_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function)
     print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_q_group: {cu_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}")
     # launch kernel
     grid = (num_q_block, nhead_q)
