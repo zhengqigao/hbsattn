@@ -15,7 +15,8 @@ from hbsattn.reference import (
 
 from flash_attn import flash_attn_varlen_func
 
-from hbsattn.utils import calculate_blocks, base_schedule
+from hbsattn.utils import calculate_blocks
+from hbsattn.schedule import base_schedule
 from hbsattn.benchmark import benchmark
 import argparse
 import json
