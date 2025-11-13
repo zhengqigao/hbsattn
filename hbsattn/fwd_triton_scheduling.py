@@ -248,10 +248,11 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
             batch_idx = q_group_to_batch[q_group]
             q_block_start_idx = cu_num_q_block[batch_idx]
             q_block_end_idx = cu_num_q_block[batch_idx + 1]
+            q_group_index_real = cu_num_q_group[batch_idx] - q_group
             print(f"for batch {batch_idx}, q_block_start_idx: {q_block_start_idx}, q_block_end_idx: {q_block_end_idx}")
             for block in range(num_block_per_group):
-                if q_block_start_idx + q_group * num_block_per_group + block < q_block_end_idx:
-                    q_assignment[h, q_group, block] = q_block_start_idx + q_group * num_block_per_group + block
+                if q_block_start_idx + q_group_index_real * num_block_per_group + block < q_block_end_idx:
+                    q_assignment[h, q_group, block] = q_block_start_idx + q_group_index_real * num_block_per_group + block
 
     return num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment
 
