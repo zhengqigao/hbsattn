@@ -271,7 +271,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
         q_assignment
     ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
-    k_assignment = gathered_masks.any(dim=2).to(torch.bool)  # [nhead, num_q_group, num_k_block]
+    k_assignment = gathered_masks.any(dim=2).to(torch.bool).contiguous()  # [nhead, num_q_group, num_k_block]
                 
     return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
