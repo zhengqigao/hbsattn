@@ -15,7 +15,7 @@ from hbsattn.reference import (
 
 from flash_attn import flash_attn_varlen_func
 
-from hbsattn.utils import calculate_blocks
+from hbsattn.utils import calculate_blocks, base_schedule
 from hbsattn.benchmark import benchmark
 import argparse
 import json
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_benchmark_to_file', type=str, default = './test/benchmark_all_results.json')
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
     parser.add_argument('--golden_ref', action='store_true', default=False)
+    parser.add_argument('--num_block_per_group', type=int, default=1, help='the number of blocks per group, used only for hbsattn (scheduling mode)')
     args = parser.parse_args()
         
     nruns = args.nruns
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     nhead_k = args.nheads
     nhead_q = args.nheads
     batch_size = args.batch_size
+    num_block_per_group = args.num_block_per_group
     
     q_block_size = 16 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
     k_block_size = 16
@@ -127,4 +129,4 @@ if __name__ == "__main__":
             'n_runs': nruns,
             'n_warmup': nwarmup,
             'name': 'HBSAttention_scheduling'
-        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, lambda x: None, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)

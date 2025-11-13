@@ -218,9 +218,7 @@ def _fwd_kernel(
         tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
-    num_block_per_group = 2
-    
+def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group):    
     nhead, num_q_block, num_k_block = block_mask.shape
 
     # cu_num_q_group[batch_idx] = the start q group index of batch idx
@@ -242,20 +240,10 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
     q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
     
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
-    # Use `num_q_block` as the padding invalid index (it's out of bounds)
-    q_assignment = num_q_block * torch.ones((nhead, num_q_group, num_block_per_group), device=block_mask.device, dtype=torch.int32)
+    # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
+    q_assignment = schedule_func(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
 
-    # a temporary placehoder, just group consecutive block together into a group for now.
-    for q_group in range(num_q_group):
-        batch_idx = q_group_to_batch[q_group]
-        q_block_start_idx = cu_num_q_block[batch_idx]
-        q_block_end_idx = cu_num_q_block[batch_idx + 1]
-        q_group_index_real = q_group - cu_num_q_group[batch_idx]
-        for block in range(num_block_per_group):
-            if q_block_start_idx + q_group_index_real * num_block_per_group + block < q_block_end_idx:
-                q_assignment[:, q_group, block] = q_block_start_idx + q_group_index_real * num_block_per_group + block
-
-    # Extend block_mask with a dummy row of all False for invalid indices
+    # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
     block_mask_extended = torch.cat([
         block_mask,
         torch.zeros(nhead, 1, num_k_block, device=block_mask.device, dtype=torch.bool)
@@ -267,12 +255,11 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
         q_assignment
     ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
-    # Reduce across num_block_per_group dimension
     k_assignment = gathered_masks.any(dim=2)  # [nhead, num_q_group, num_k_block]
                 
-    return num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
+    return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
-def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, grouping_function, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
+def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
     print(f"debug, cu_q_block: {cu_q_block}, cu_num_q_block: {cu_num_q_block}")
     seq_len_q = q.shape[0]
@@ -299,7 +286,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
     
-    num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function)
+    num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group)
     print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
     # launch kernel
     grid = (num_q_block, nhead_q)
