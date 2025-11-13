@@ -87,6 +87,8 @@ def _fwd_kernel(
     off_q_group = tl.program_id(0)
     off_dim = tl.arange(0, BLOCK_DIM)
 
+    tl.device_print("off_head_q", off_head_q)
+    
     off_block_m = tl.arange(0, BLOCK_M)
     off_block_n = tl.arange(0, BLOCK_N)
     
