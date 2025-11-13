@@ -97,8 +97,8 @@ def _fwd_kernel(
     
     # end_m = tl.reshape(end_m_index[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
     # off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], NUM_BLOCK_PER_GROUP * BLOCK_M)
-    end_m = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M]+1, dtype=tl.int32) + 1, NUM_BLOCK_PER_GROUP * BLOCK_M)
-    off_m = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M]+1, dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
+    end_m = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32) + 1, NUM_BLOCK_PER_GROUP * BLOCK_M)
+    off_m = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
     
     # tl.device_print("off_m", off_m)
     # load the q block
