@@ -94,7 +94,7 @@ if __name__ == "__main__":
         block_mask[:,i,first_k_block_idx_in_the_same_batch] = True # this can make sure q will attend to the first k block in the same batch.
     assert torch.sum(block_mask, dim=-1).all() == True, "at least one k block is needed for each q."
 
-
+    print(f"block_mask: {block_mask}")
     
     # run once to get a golden reference
     if args.golden_ref:
