@@ -261,9 +261,9 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
         for q_group in range(num_q_group):
             all_q_blocks_in_group = q_assignment[head_idx, q_group, :]
             for j in all_q_blocks_in_group:
-                k_index = torch.where(block_mask[head_idx, j, :])[0]
-                print("k_index: ", k_index)
-                k_assignment[head_idx, q_group, k_index] = True
+                if j >=0: # -1 is the padding value
+                    k_index = torch.where(block_mask[head_idx, j, :])[0]
+                    k_assignment[head_idx, q_group, k_index] = True
                 
     return num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
