@@ -90,7 +90,7 @@ def _fwd_kernel(
     off_block_m = tl.arange(0, BLOCK_M)
     off_block_n = tl.arange(0, BLOCK_N)
     
-    q_assignment_ptr = q_assignment + off_head_q * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + tl.arange(0, NUM_BLOCK_PER_GROUP)
+    q_assignment_ptr = q_assignment + off_head_k * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + tl.arange(0, NUM_BLOCK_PER_GROUP)
     off_q_block = tl.load(q_assignment_ptr) # shape (NUM_BLOCK_PER_GROUP,)
     start_m_index = tl.load(cu_q_block + off_q_block)
     end_m_index = tl.load(cu_q_block + off_q_block + 1)
