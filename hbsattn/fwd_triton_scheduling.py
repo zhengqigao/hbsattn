@@ -223,16 +223,14 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
     
     nhead, num_q_block, num_k_block = block_mask.shape
 
-    # cu_q_group[batch_idx] = the start q group id of batch idx
-    cu_q_group = torch.zeros(
+    # cu_num_q_group[batch_idx] = the start q group index of batch idx
+    cu_num_q_group = torch.zeros(
         batch_size + 1,
         device=block_mask.device,
         dtype=torch.int32,
     )
-    tmp = torch.ceil((cu_num_q_block[1:] - cu_num_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
-    print(f"debug, tmp: {tmp}")
-    cu_q_group[1:] = tmp
-    num_q_group = cu_q_group[-1]
+    cu_num_q_group[1:] = torch.ceil((cu_num_q_block[1:] - cu_num_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
+    num_q_group = cu_num_q_group[-1]
     
     # q_group_to_batch[group_idx] = the batch id of the group idx
     q_group_to_batch = torch.zeros(
@@ -240,7 +238,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
         device=block_mask.device,
         dtype=torch.int32,
     )
-    q_group_to_batch[cu_q_group[1:-1]] = 1
+    q_group_to_batch[cu_num_q_group[1:-1]] = 1
     q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
     
     # q_assignment[head_idx, group_idx, :] = all the blocks_idx assigned to group_idx for head_idx
@@ -250,11 +248,12 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function):
             batch_idx = q_group_to_batch[q_group]
             q_block_start_idx = cu_num_q_block[batch_idx]
             q_block_end_idx = cu_num_q_block[batch_idx + 1]
+            print(f"for batch {batch_idx}, q_block_start_idx: {q_block_start_idx}, q_block_end_idx: {q_block_end_idx}")
             for block in range(num_block_per_group):
                 if q_block_start_idx + q_group * num_block_per_group + block < q_block_end_idx:
                     q_assignment[h, q_group, block] = q_block_start_idx + q_group * num_block_per_group + block
 
-    return num_block_per_group, num_q_group, cu_q_group, q_group_to_batch, q_assignment
+    return num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment
 
 def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, grouping_function, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
     
@@ -283,8 +282,8 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
     even_headdim = headdim == BLOCK_DIM
     
-    num_block_per_group, num_q_group, cu_q_group, q_group_to_batch, q_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function)
-    print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_q_group: {cu_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}")
+    num_block_per_group, num_q_group, cu_num_q_group, q_group_to_batch, q_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, grouping_function)
+    print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}")
     # launch kernel
     grid = (num_q_block, nhead_q)
 
