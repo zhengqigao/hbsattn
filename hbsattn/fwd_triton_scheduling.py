@@ -95,12 +95,9 @@ def _fwd_kernel(
     start_m_index = tl.load(cu_q_block + off_q_block)
     end_m_index = tl.load(cu_q_block + off_q_block + 1)
     
-    # end_m = tl.reshape(end_m_index[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
-    # off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], NUM_BLOCK_PER_GROUP * BLOCK_M)
-    end_m = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32) + 1, NUM_BLOCK_PER_GROUP * BLOCK_M)
-    off_m = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
+    end_m = tl.reshape(end_m_index[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
+    off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], NUM_BLOCK_PER_GROUP * BLOCK_M)
     
-    # tl.device_print("off_m", off_m)
     # load the q block
     q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
     if EVEN_SEQ_QBLOCK:
@@ -145,9 +142,7 @@ def _fwd_kernel(
         cond1 = tl.load(k_assignment + off_head_k * stride_k_assignment_nh + off_q_group * stride_k_assignment_ng + off_k_block)
         cond2 = not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx
         mask = tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk)
-        # mask = tl.reshape(mask[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1), NUM_BLOCK_PER_GROUP * BLOCK_M)
-        
-        mask = tl.reshape(tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1) + 1, NUM_BLOCK_PER_GROUP * BLOCK_M)
+        mask = tl.reshape(mask[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1), NUM_BLOCK_PER_GROUP * BLOCK_M)
         
         if True: # cond1 and cond2:    
             end_n = tl.load(cu_k_block + off_k_block + 1)
