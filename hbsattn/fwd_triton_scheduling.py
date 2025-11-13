@@ -145,7 +145,7 @@ def _fwd_kernel(
         mask = tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk)
         mask = tl.reshape(mask[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1), NUM_BLOCK_PER_GROUP * BLOCK_M)
         
-        if cond1: # cond1 and cond2:    
+        if cond1 and cond2: # cond1 and cond2:    
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
