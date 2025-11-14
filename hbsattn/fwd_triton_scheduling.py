@@ -257,14 +257,14 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     end_time = time.time()
     print(f"q_group_to_batch time: {end_time - start_time:.3e} sec")
 
-    start_time = time.time()
+
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
     # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
     # q_assignment shape (nhead, num_q_group, num_block_per_group)
     start_time = time.time()
     q_assignment = schedule_func(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.time()
-    print(f"inner scheduling time: {end_time - start_time:.3e} sec")
+    print(f"given scheduling time: {end_time - start_time:.3e} sec")
 
     start_time = time.time()
     q_assignment_backup = base_schedule_backup2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
