@@ -259,6 +259,12 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     # q_assignment shape (nhead, num_q_group, num_block_per_group)
     q_assignment = schedule_func(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
 
+    from hbsattn.schedule import base_schedule_backup2
+    q_assignment_backup = base_schedule_backup2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+    print(f"q_assignment: {q_assignment}")
+    print(f"q_assignment_backup: {q_assignment_backup}")
+    assert torch.all(q_assignment == q_assignment_backup), "q_assignment is not correct"
+
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
     block_mask_extended = torch.cat([
         block_mask,

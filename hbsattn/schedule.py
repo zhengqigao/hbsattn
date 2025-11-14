@@ -1,5 +1,12 @@
 import torch 
 
+def find_next_integer_multiple(x, y):
+    '''
+    Find the next integer multiple of y that is greater than or equal to x.
+    '''
+    
+    return (x + y - 1) // y * y
+
 def base_schedule(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block):
     '''
     Get the assignment of q blocks to several groups.
@@ -77,11 +84,11 @@ def base_schedule_backup(num_block_per_group, block_mask, num_q_block, num_q_gro
     Args: 
     num_block_per_group: a >1 integer,the number of blocks per group defined by the user.
     block_mask: a bool tensor of shape (nhead, num_q_block, num_k_block) indicates which q block attends to which k block.
-    num_q_block: the sum of total number of q blocks in one batch.
-    num_q_group: the sum of total number of q groups in one batch.
+    num_q_block: the sum of total number of q blocks.
+    num_q_group: the sum of total number of q groups.
     q_group_to_batch: a tensor of shape (num_q_group), indicates the batch index of each q group.
-    cu_num_q_group: a tensor of shape (batch_size + 1), indicates the start index of each q group in the batch.
-    cu_num_q_block: a tensor of shape (batch_size + 1), indicates the start index of each q block in the batch.
+    cu_num_q_group: a tensor of shape (batch_size + 1), indicates the start number index of each q group.
+    cu_num_q_block: a tensor of shape (batch_size + 1), indicates the start number index of each q block.
     
     '''
     nhead = block_mask.shape[0]
@@ -94,4 +101,20 @@ def base_schedule_backup(num_block_per_group, block_mask, num_q_block, num_q_gro
         for block in range(num_block_per_group):
             if q_block_start_idx + q_group_index_real * num_block_per_group + block < q_block_end_idx:
                 q_assignment[:, q_group, block] = q_block_start_idx + q_group_index_real * num_block_per_group + block
+    return q_assignment
+
+def base_schedule_backup2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block):
+    nhead = block_mask.shape[0]
+    q_assignment = num_q_block * torch.ones((nhead, num_q_group, num_block_per_group), device=block_mask.device, dtype=torch.int32)
+    batch_size = len(cu_num_q_group) - 1
+    start = 0 
+    for batch_idx in range(batch_size):
+        cur_block_num = cu_num_q_group[batch_idx + 1] - cu_num_q_group[batch_idx]
+        num_group = (cur_block_num + num_block_per_group - 1) // num_block_per_group 
+        divisible_block_num = num_group * num_block_per_group
+        index = torch.ones(divisible_block_num, device=block_mask.device, dtype=torch.int32) * num_q_block
+        index[:cur_block_num] = torch.arange(cur_block_num, device=block_mask.device, dtype=torch.int32) + cu_num_q_group[batch_idx]
+        index = index.view(num_group, num_block_per_group)
+        q_assignment[:, start:start+num_group, :] = index
+        start += num_group
     return q_assignment
