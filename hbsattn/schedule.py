@@ -109,11 +109,11 @@ def base_schedule_backup2(num_block_per_group, block_mask, num_q_block, num_q_gr
     batch_size = len(cu_num_q_group) - 1
     start = 0 
     for batch_idx in range(batch_size):
-        cur_block_num = cu_num_q_group[batch_idx + 1] - cu_num_q_group[batch_idx]
+        cur_block_num = cu_num_q_block[batch_idx + 1] - cu_num_q_block[batch_idx]
         num_group = (cur_block_num + num_block_per_group - 1) // num_block_per_group 
         divisible_block_num = num_group * num_block_per_group
         index = torch.ones(divisible_block_num, device=block_mask.device, dtype=torch.int32) * num_q_block
-        index[:cur_block_num] = torch.arange(cur_block_num, device=block_mask.device, dtype=torch.int32) + cu_num_q_group[batch_idx]
+        index[:cur_block_num] = torch.arange(cur_block_num, device=block_mask.device, dtype=torch.int32) + cu_num_q_block[batch_idx]
         index = index.view(num_group, num_block_per_group)
         q_assignment[:, start:start+num_group, :] = index
         start += num_group
