@@ -293,16 +293,15 @@ def _fwd_kernel_groupsize2(
 def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
     
     num_block_per_group = 2
-    print(f"in _forward_scheduling_groupsize2i")
     seq_len_q = q.shape[0]
     nhead_q = q.shape[1]
     nhead_k = k.shape[1]
     batch_size = len(cu_q_seqlens) - 1
-    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    # assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
     head_q_to_k_ratio = nhead_q // nhead_k
 
     headdim = q.shape[2]
-    assert (q_block_size & (q_block_size - 1) == 0) and (k_block_size & (k_block_size - 1) == 0), "q_block_size and k_block_size must be powers of 2"
+    # assert (q_block_size & (q_block_size - 1) == 0) and (k_block_size & (k_block_size - 1) == 0), "q_block_size and k_block_size must be powers of 2"
     BLOCK_M = q_block_size
     BLOCK_N = k_block_size
     BLOCK_DIM = max(triton.next_power_of_2(headdim), 16)
@@ -318,14 +317,14 @@ def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_ma
     even_headdim = headdim == BLOCK_DIM
         
 
-    torch.cuda.synchronize()
-    start_time = time.perf_counter()
+    # torch.cuda.synchronize()
+    # start_time = time.perf_counter()
     q_assignment = base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
-    end_time = time.perf_counter()
-    torch.cuda.synchronize()
-    print(f"given scheduling time: {end_time - start_time:.3e} sec")
+    # end_time = time.perf_counter()
+    # torch.cuda.synchronize()
+    # print(f"given scheduling time: {end_time - start_time:.3e} sec")
 
-    start_time = time.time()
+    # start_time = time.time()
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
     block_mask_extended = torch.cat([
         block_mask,
@@ -351,8 +350,7 @@ def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_ma
     # ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
     # k_assignment = gathered_masks.any(dim=2).to(torch.bool).contiguous()  # [nhead, num_q_group, num_k_block]
-    end_time = time.time()
-    print(f"k_assignment time: {end_time - start_time:.3e} sec")    
+    # end_time = time.time()  
     
     
     # print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
