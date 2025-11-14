@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
     parser.add_argument('--num_block_per_group', type=int, default=1, help='the number of blocks per group, used only for hbsattn (scheduling mode)')
     parser.add_argument('--block_size', type=int, default=16)
-    parser.add_argument('--provide-info', action='store_true', default=False)
+    parser.add_argument('--provide_info', action='store_true', default=False)
     args = parser.parse_args()
         
     nruns = args.nruns
