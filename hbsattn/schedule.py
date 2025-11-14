@@ -290,22 +290,30 @@ if __name__ == "__main__":
     q_group_to_batch[cu_num_q_group[1:-1]] = 1
     q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
     
+    torch.cuda.synchronize()
     start_time = time.time()
     base_schedule(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.time()
+    torch.cuda.synchronize()
     print(f"base_schedule time: {end_time - start_time:.3e} sec")
 
+    torch.cuda.synchronize()
     start_time = time.time()
     base_schedule_backup(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.time()
+    torch.cuda.synchronize()
     print(f"base_schedule_backup time: {end_time - start_time:.3e} sec")
 
+    torch.cuda.synchronize()
     start_time = time.time()
     base_schedule_backup2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.time()
+    torch.cuda.synchronize()
     print(f"base_schedule_backup2 time: {end_time - start_time:.3e} sec")
     
+    torch.cuda.synchronize()
     start_time = time.time()
     base_schedule_backup3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.time()
+    torch.cuda.synchronize()
     print(f"base_schedule_backup3 time: {end_time - start_time:.3e} sec")
