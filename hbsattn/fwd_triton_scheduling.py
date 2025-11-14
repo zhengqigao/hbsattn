@@ -271,7 +271,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
 
     torch.cuda.synchronize()
     start_time = time.perf_counter()
-    q_assignment_backup = base_schedule_optimized(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+    q_assignment_backup = base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.perf_counter()
     torch.cuda.synchronize()
     print(f"backup scheduling time: {end_time - start_time:.3e} sec")
