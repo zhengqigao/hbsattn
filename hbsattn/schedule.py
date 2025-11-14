@@ -202,6 +202,9 @@ def base_schedule_backup3(num_block_per_group, block_mask, num_q_block, num_q_gr
 if __name__ == "__main__":
     import argparse
     import torch
+    import os 
+    import sys 
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from hbsattn.utils import calculate_blocks
     import time 
     parser = argparse.ArgumentParser()
