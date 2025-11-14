@@ -198,6 +198,106 @@ def base_schedule_backup3(num_block_per_group, block_mask, num_q_block, num_q_gr
     
     return q_assignment
 
+def base_schedule_optimized(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block):
+    '''
+    Optimized version with minimal tensor operations.
+    '''
+    nhead = block_mask.shape[0]
+    device = block_mask.device
+    
+    # Pre-compute all batch information (vectorized)
+    batch_idx = q_group_to_batch  # [num_q_group]
+    q_block_start = cu_num_q_block[batch_idx]  # [num_q_group]
+    q_block_end = cu_num_q_block[batch_idx + 1]  # [num_q_group]
+    q_group_start = cu_num_q_group[batch_idx]  # [num_q_group]
+    
+    # Compute relative group indices (vectorized)
+    q_group_offset = torch.arange(num_q_group, device=device, dtype=torch.int32) - q_group_start  # [num_q_group]
+    
+    # Compute base indices for each group (vectorized)
+    # base_idx[g] = q_block_start[g] + q_group_offset[g] * num_block_per_group
+    base_idx = q_block_start + q_group_offset * num_block_per_group  # [num_q_group]
+    
+    # Create block offset array once
+    block_offset = torch.arange(num_block_per_group, device=device, dtype=torch.int32)  # [num_block_per_group]
+    
+    # Broadcast addition (this is the key operation)
+    # candidate_indices[g, b] = base_idx[g] + block_offset[b]
+    candidate_indices = base_idx.unsqueeze(1) + block_offset.unsqueeze(0)  # [num_q_group, num_block_per_group]
+    
+    # Validity mask (vectorized comparison)
+    valid_mask = candidate_indices < q_block_end.unsqueeze(1)  # [num_q_group, num_block_per_group]
+    
+    # Apply mask (using where for conditional assignment)
+    q_assignment_2d = torch.where(valid_mask, candidate_indices, num_q_block)  # [num_q_group, num_block_per_group]
+    
+    # Expand to all heads (memory efficient - creates a view, not a copy)
+    q_assignment = q_assignment_2d.unsqueeze(0).expand(nhead, -1, -1)
+    
+    return q_assignment
+
+
+def base_schedule_optimized_v2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block):
+    '''
+    Ultra-optimized version using addcmul for fused multiply-add.
+    '''
+    nhead = block_mask.shape[0]
+    device = block_mask.device
+    
+    # Gather batch info in one go
+    batch_idx = q_group_to_batch
+    
+    # Create output tensor directly
+    q_assignment_2d = torch.empty((num_q_group, num_block_per_group), device=device, dtype=torch.int32)
+    
+    # Pre-compute arrays
+    q_block_start = cu_num_q_block[batch_idx].unsqueeze(1)  # [num_q_group, 1]
+    q_block_end = cu_num_q_block[batch_idx + 1].unsqueeze(1)  # [num_q_group, 1]
+    q_group_offset = (torch.arange(num_q_group, device=device, dtype=torch.int32) - 
+                      cu_num_q_group[batch_idx]).unsqueeze(1)  # [num_q_group, 1]
+    block_offset = torch.arange(num_block_per_group, device=device, dtype=torch.int32).unsqueeze(0)  # [1, num_block_per_group]
+    
+    # Compute candidate indices using addcmul (fused multiply-add: a + b * c)
+    # candidate = q_block_start + q_group_offset * num_block_per_group + block_offset
+    q_assignment_2d.copy_(q_block_start)  # Start with base
+    q_assignment_2d.addcmul_(q_group_offset.expand_as(q_assignment_2d), 
+                              torch.full_like(q_assignment_2d, num_block_per_group), 
+                              value=1)  # Add q_group_offset * num_block_per_group
+    q_assignment_2d.add_(block_offset)  # Add block offset
+    
+    # Apply validity mask
+    valid_mask = q_assignment_2d < q_block_end
+    q_assignment_2d.masked_fill_(~valid_mask, num_q_block)
+    
+    # Expand to all heads
+    q_assignment = q_assignment_2d.unsqueeze(0).expand(nhead, -1, -1)
+    
+    return q_assignment
+
+
+def base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block):
+    '''
+    Simplified version with minimal operations - likely the fastest.
+    '''
+    device = block_mask.device
+    
+    # All vectorized lookups
+    batch_idx = q_group_to_batch
+    group_ids = torch.arange(num_q_group, device=device, dtype=torch.int32)
+    
+    # Compute: base + offset * multiplier + position
+    base = cu_num_q_block[batch_idx].view(-1, 1)
+    offset = (group_ids - cu_num_q_group[batch_idx]).view(-1, 1)
+    position = torch.arange(num_block_per_group, device=device, dtype=torch.int32).view(1, -1)
+    
+    # Single fused operation
+    indices = base + offset * num_block_per_group + position
+    
+    # Mask and expand
+    valid = indices < cu_num_q_block[batch_idx + 1].view(-1, 1)
+    result = torch.where(valid, indices, num_q_block)
+    
+    return result.unsqueeze(0).expand(block_mask.shape[0], -1, -1)
 
 if __name__ == "__main__":
     import argparse
@@ -317,3 +417,24 @@ if __name__ == "__main__":
         end_time = time.perf_counter()
         torch.cuda.synchronize()
         print(f"base_schedule_backup3 time: {end_time - start_time:.3e} sec")
+        
+        torch.cuda.synchronize()
+        start_time = time.perf_counter()
+        base_schedule_optimized(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+        end_time = time.perf_counter()
+        torch.cuda.synchronize()
+        print(f"base_schedule_optimized time: {end_time - start_time:.3e} sec")
+        
+        torch.cuda.synchronize()
+        start_time = time.perf_counter()
+        base_schedule_optimized_v2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+        end_time = time.perf_counter()
+        torch.cuda.synchronize()
+        print(f"base_schedule_optimized_v2 time: {end_time - start_time:.3e} sec")
+        
+        torch.cuda.synchronize()
+        start_time = time.perf_counter()
+        base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+        end_time = time.perf_counter()
+        torch.cuda.synchronize()
+        print(f"base_schedule_optimized_v3 time: {end_time - start_time:.3e} sec")
