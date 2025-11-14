@@ -5,7 +5,7 @@ import triton
 import triton.language as tl
 import torch.nn.functional as F
 from hbsattn.utils import calculate_blocks
-from hbsattn.schedule import base_schedule_backup2
+from hbsattn.schedule import *
 __all__ = ['_forward_scheduling']
 
 @triton.autotune(
