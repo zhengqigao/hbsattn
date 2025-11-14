@@ -233,11 +233,32 @@ def _fwd_kernel(
         tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-def _scheduling(block_mask, num_q_block, cu_num_q_block, batch_size, nhead, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch): 
+def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
+    
+    seq_len_q = q.shape[0]
+    nhead_q = q.shape[1]
+    nhead_k = k.shape[1]
+    batch_size = len(cu_q_seqlens) - 1
+    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
+    head_q_to_k_ratio = nhead_q // nhead_k
 
-    # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
-    # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
-    # q_assignment shape (nhead, num_q_group, num_block_per_group)
+    headdim = q.shape[2]
+    assert (q_block_size & (q_block_size - 1) == 0) and (k_block_size & (k_block_size - 1) == 0), "q_block_size and k_block_size must be powers of 2"
+    BLOCK_M = q_block_size
+    BLOCK_N = k_block_size
+    BLOCK_DIM = max(triton.next_power_of_2(headdim), 16)
+    
+    softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
+    
+    # the appended last q_block_size rows are dummy rows for the kernel to excute without boundary issues; will not be returned.
+    out = torch.empty((seq_len_q + q_block_size, nhead_q, headdim), device=q.device, dtype=q.dtype).contiguous()
+    lse = torch.empty((seq_len_q + q_block_size, nhead_q), device=q.device, dtype=q.dtype).contiguous()
+
+    EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
+    EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
+    even_headdim = headdim == BLOCK_DIM
+        
+
     torch.cuda.synchronize()
     start_time = time.perf_counter()
     q_assignment = base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
@@ -272,38 +293,9 @@ def _scheduling(block_mask, num_q_block, cu_num_q_block, batch_size, nhead, sche
     
     # k_assignment = gathered_masks.any(dim=2).to(torch.bool).contiguous()  # [nhead, num_q_group, num_k_block]
     end_time = time.time()
-    print(f"k_assignment time: {end_time - start_time:.3e} sec")
-    return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
-
-def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
+    print(f"k_assignment time: {end_time - start_time:.3e} sec")    
     
-    seq_len_q = q.shape[0]
-    nhead_q = q.shape[1]
-    nhead_k = k.shape[1]
-    batch_size = len(cu_q_seqlens) - 1
-    assert nhead_q % nhead_k == 0, "nhead_q must be divisible by nhead_k (for GQA)"
-    head_q_to_k_ratio = nhead_q // nhead_k
-
-    headdim = q.shape[2]
-    assert (q_block_size & (q_block_size - 1) == 0) and (k_block_size & (k_block_size - 1) == 0), "q_block_size and k_block_size must be powers of 2"
-    BLOCK_M = q_block_size
-    BLOCK_N = k_block_size
-    BLOCK_DIM = max(triton.next_power_of_2(headdim), 16)
     
-    softmax_scale = softmax_scale if softmax_scale is not None else headdim ** -0.5
-    
-    # the appended last q_block_size rows are dummy rows for the kernel to excute without boundary issues; will not be returned.
-    out = torch.empty((seq_len_q + q_block_size, nhead_q, headdim), device=q.device, dtype=q.dtype).contiguous()
-    lse = torch.empty((seq_len_q + q_block_size, nhead_q), device=q.device, dtype=q.dtype).contiguous()
-
-    EVEN_SEQ_KBLOCK = torch.all((cu_k_seqlens[1:] - cu_k_seqlens[:-1]) % k_block_size == 0).item()
-    EVEN_SEQ_QBLOCK = torch.all((cu_q_seqlens[1:] - cu_q_seqlens[:-1]) % q_block_size == 0).item()
-    even_headdim = headdim == BLOCK_DIM
-    
-    start_time = time.time()
-    q_assignment, k_assignment = _scheduling(block_mask, num_q_block,cu_num_q_block, batch_size, nhead_k, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch)
-    end_time = time.time()
-    print(f"outer scheduling time: {end_time - start_time:.3e} sec")
     # print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
     
     # launch kernel

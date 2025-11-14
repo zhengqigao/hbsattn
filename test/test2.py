@@ -121,7 +121,7 @@ if __name__ == "__main__":
     #  These information is one-time calcualtion for the same sequence to pass through all attention layers, so can be amortized.
     #  Note when the input change, these information should be recalculated.
     #  In other words, they cannot be amortized across different input sequences, but can across different attention layers.
-    #  Providing the args.provide_info can give us two different ways of measuring runtime.
+    #  Providing the args.provide_info can give us two different ways of measuring runtime: args.provide_info = True is closer to running it in a real LLM. 
     if not args.provide_info:
         our_auto_result = benchmark({
                     'golden': golden_res,
