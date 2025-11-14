@@ -233,7 +233,7 @@ def _fwd_kernel(
         tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-def _scheduling(block_mask, num_q_block, cu_num_q_block, batch_size, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch): 
+def _scheduling(block_mask, num_q_block, cu_num_q_block, batch_size, nhead, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch): 
 
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
     # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
@@ -301,7 +301,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     even_headdim = headdim == BLOCK_DIM
     
     start_time = time.time()
-    q_assignment, k_assignment = _scheduling(block_mask, num_q_block,cu_num_q_block, batch_size, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch)
+    q_assignment, k_assignment = _scheduling(block_mask, num_q_block,cu_num_q_block, batch_size, nhead_k, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch)
     end_time = time.time()
     print(f"outer scheduling time: {end_time - start_time:.3e} sec")
     # print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
