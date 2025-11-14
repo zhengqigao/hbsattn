@@ -277,14 +277,26 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
         block_mask,
         torch.zeros(nhead, 1, num_k_block, device=block_mask.device, dtype=torch.bool)
     ], dim=1)  # [nhead, num_q_block + 1, num_k_block]
+
+    q_idx = q_assignment.reshape(nhead, -1)  # [h, G*B]
+
+    # Select corresponding block_mask rows
+    selected = torch.index_select(block_mask_extended, dim=1, index=q_idx[0])
+    # shape = [nhead, G*B, num_k_block]
+
+    # Reshape back
+    selected = selected.reshape(nhead, num_q_group, num_block_per_group, num_k_block)
+
+    # Reduce any
+    k_assignment = selected.any(dim=2)
     
-    # gathered_masks[h, g, b, k] = block_mask_extended[h, q_assignment[h, g, b], k]
-    gathered_masks = block_mask_extended[
-        torch.arange(nhead, device=block_mask.device).view(-1, 1, 1).expand(nhead, num_q_group, num_block_per_group),
-        q_assignment
-    ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
+    # # gathered_masks[h, g, b, k] = block_mask_extended[h, q_assignment[h, g, b], k]
+    # gathered_masks = block_mask_extended[
+    #     torch.arange(nhead, device=block_mask.device).view(-1, 1, 1).expand(nhead, num_q_group, num_block_per_group),
+    #     q_assignment
+    # ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
-    k_assignment = gathered_masks.any(dim=2).to(torch.bool).contiguous()  # [nhead, num_q_group, num_k_block]
+    # k_assignment = gathered_masks.any(dim=2).to(torch.bool).contiguous()  # [nhead, num_q_group, num_k_block]
     end_time = time.time()
     print(f"k_assignment time: {end_time - start_time:.3e} sec")
     return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
