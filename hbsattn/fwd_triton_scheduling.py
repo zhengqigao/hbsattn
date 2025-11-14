@@ -5,7 +5,7 @@ import triton
 import triton.language as tl
 import torch.nn.functional as F
 from hbsattn.utils import calculate_blocks
-
+from hbsattn.schedule import base_schedule_backup2
 __all__ = ['_forward_scheduling']
 
 @triton.autotune(
@@ -257,13 +257,16 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
     # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
     # q_assignment shape (nhead, num_q_group, num_block_per_group)
+    start_time = time.time()
     q_assignment = schedule_func(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+    end_time = time.time()
+    print(f"inner scheduling time: {end_time - start_time:.3e} sec")
 
-    from hbsattn.schedule import base_schedule_backup2
+    start_time = time.time()
     q_assignment_backup = base_schedule_backup2(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
-    print(f"q_assignment: {q_assignment}")
-    print(f"q_assignment_backup: {q_assignment_backup}")
     assert torch.all(q_assignment == q_assignment_backup), "q_assignment is not correct"
+    end_time = time.time()
+    print(f"backup scheduling time: {end_time - start_time:.3e} sec")
 
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
     block_mask_extended = torch.cat([
@@ -309,7 +312,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     start_time = time.time()
     num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group)
     end_time = time.time()
-    print(f"scheduling time: {end_time - start_time:.3e} sec")
+    print(f"outer scheduling time: {end_time - start_time:.3e} sec")
     # print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
     # launch kernel
     grid = (num_q_group, nhead_q)
