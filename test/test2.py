@@ -145,12 +145,13 @@ if __name__ == "__main__":
             'name': 'FlashAttention'
         }, flash_attn_varlen_func, q, k, v, cu_q_seqlens, cu_k_seqlens, max_k_seqlen, max_q_seqlen, 0.0, softmax_scale,causal)
         
-        hanlab_result = benchmark({
-                    'golden': golden_res if args.golden_ref else None,
-                    'n_runs': nruns,
-                    'n_warmup': nwarmup,
-                    'name': 'HBSAttention_hanlab_bsattn'
-        }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
+        if args.block_size == 128:
+            hanlab_result = benchmark({
+                        'golden': golden_res if args.golden_ref else None,
+                        'n_runs': nruns,
+                        'n_warmup': nwarmup,
+                        'name': 'HBSAttention_hanlab_bsattn'
+            }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
                 
         our_auto_result = benchmark({
                     'golden': golden_res,
@@ -190,12 +191,13 @@ if __name__ == "__main__":
             'name': 'FlashAttention'
         }, flash_attn_varlen_func, q, k, v, cu_q_seqlens, cu_k_seqlens, max_k_seqlen, max_q_seqlen, 0.0, softmax_scale,causal)
         
-        hanlab_result = benchmark({
-                    'golden': golden_res if args.golden_ref else None,
-                    'n_runs': nruns,
-                    'n_warmup': nwarmup,
-                    'name': 'HBSAttention_hanlab_bsattn'
-        }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
+        if args.block_size == 128:
+            hanlab_result = benchmark({
+                        'golden': golden_res if args.golden_ref else None,
+                        'n_runs': nruns,
+                        'n_warmup': nwarmup,
+                        'name': 'HBSAttention_hanlab_bsattn'
+            }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
         
         our_auto_result = benchmark({
                     'golden': golden_res,

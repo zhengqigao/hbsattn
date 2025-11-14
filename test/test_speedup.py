@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_benchmark_to_file', type=str, default = './test/benchmark_all_results.json')
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
     parser.add_argument('--golden_ref', action='store_true', default=False)
+    parser.add_argument('--provide_info', action='store_true', default=False)
     args = parser.parse_args()
     
     ## TODO: add a logic here, read the args.save_benchmark_to_file, and if the unit_seqlen is already in the file, then do nothing and exit.le
@@ -77,6 +78,7 @@ if __name__ == "__main__":
     nhead_k = args.nheads
     nhead_q = args.nheads
     batch_size = args.batch_size
+    provide_info = args.provide_info
     
     q_block_size = 128 # we fix to block size 128, since block_sparse_attn from Han lab only support block size 128 for comparing speedup.
     k_block_size = 128
