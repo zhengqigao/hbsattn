@@ -263,19 +263,13 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     # q_assignment shape (nhead, num_q_group, num_block_per_group)
     torch.cuda.synchronize()
     start_time = time.perf_counter()
-    q_assignment = base_schedule(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+    q_assignment = base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.perf_counter()
     torch.cuda.synchronize()
     print(f"given scheduling time: {end_time - start_time:.3e} sec")
 
 
-    torch.cuda.synchronize()
-    start_time = time.perf_counter()
-    q_assignment_backup = base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
-    end_time = time.perf_counter()
-    torch.cuda.synchronize()
-    print(f"backup scheduling time: {end_time - start_time:.3e} sec")
-    assert torch.all(q_assignment == q_assignment_backup), "q_assignment is not correct"
+
 
     start_time = time.time()
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
