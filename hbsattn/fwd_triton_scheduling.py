@@ -270,17 +270,17 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
     block_mask_extended = torch.cat([
         block_mask,
-        torch.zeros(nhead, 1, num_k_block, device=block_mask.device, dtype=torch.bool)
+        torch.zeros(nhead_k, 1, num_k_block, device=block_mask.device, dtype=torch.bool)
     ], dim=1)  # [nhead, num_q_block + 1, num_k_block]
 
-    q_idx = q_assignment.reshape(nhead, -1)  # [h, G*B]
+    q_idx = q_assignment.reshape(nhead_q, -1)  # [h, G*B]
 
     # Select corresponding block_mask rows
     selected = torch.index_select(block_mask_extended, dim=1, index=q_idx[0])
     # shape = [nhead, G*B, num_k_block]
 
     # Reshape back
-    selected = selected.reshape(nhead, num_q_group, num_block_per_group, num_k_block)
+    selected = selected.reshape(nhead_k, num_q_group, num_block_per_group, num_k_block)
 
     # Reduce any
     k_assignment = selected.any(dim=2)
