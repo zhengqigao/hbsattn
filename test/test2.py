@@ -49,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_block_per_group', type=int, default=1, help='the number of blocks per group, used only for hbsattn (scheduling mode)')
     parser.add_argument('--block_size', type=int, default=16)
     parser.add_argument('--provide_info', action='store_true', default=False)
+    parser.add_argument('--golden_ref', action='store_true', default=False)
     args = parser.parse_args()
         
     nruns = args.nruns
@@ -115,7 +116,20 @@ if __name__ == "__main__":
     
     print(f"block_mask: {block_mask}")
     
-    golden_res = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    # Convert the block_mask to the format for hanlab_block_sparse_attn.
+    block_mask_batched = torch.empty(batch_size, nhead_k, unit_block, unit_block, device=device, dtype=torch.bool)
+    for i in range(batch_size):
+        for j in range(nhead_k):
+            for t1 in range(unit_block):
+                for t2 in range(unit_block):
+                    q_block_idx = i * (unit_block) + t1
+                    k_block_idx = i * (unit_block) + t2
+                    block_mask_batched[i,j,t1,t2] = block_mask[j,q_block_idx,k_block_idx]
+    
+    if args.golden_ref:
+        golden_res = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
+    else:
+        golden_res = None
 
     #  The `calculate_blocks` function returns num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block
     #  These information is one-time calcualtion for the same sequence to pass through all attention layers, so can be amortized.
@@ -123,6 +137,21 @@ if __name__ == "__main__":
     #  In other words, they cannot be amortized across different input sequences, but can across different attention layers.
     #  Providing the args.provide_info can give us two different ways of measuring runtime: args.provide_info = True is closer to running it in a real LLM. 
     if not args.provide_info:
+
+        flash_attn_base_result = benchmark({
+            'golden': golden_res if args.golden_ref else None,
+            'n_runs': nruns,
+            'n_warmup': nwarmup,
+            'name': 'FlashAttention'
+        }, flash_attn_varlen_func, q, k, v, cu_q_seqlens, cu_k_seqlens, max_k_seqlen, max_q_seqlen, 0.0, softmax_scale,causal)
+        
+        hanlab_result = benchmark({
+                    'golden': golden_res if args.golden_ref else None,
+                    'n_runs': nruns,
+                    'n_warmup': nwarmup,
+                    'name': 'HBSAttention_hanlab_bsattn'
+        }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
+                
         our_auto_result = benchmark({
                     'golden': golden_res,
                     'n_runs': nruns,
@@ -153,6 +182,21 @@ if __name__ == "__main__":
                                     num_block_per_group, )
         
     else:
+        
+        flash_attn_base_result = benchmark({
+            'golden': golden_res if args.golden_ref else None,
+            'n_runs': nruns,
+            'n_warmup': nwarmup,
+            'name': 'FlashAttention'
+        }, flash_attn_varlen_func, q, k, v, cu_q_seqlens, cu_k_seqlens, max_k_seqlen, max_q_seqlen, 0.0, softmax_scale,causal)
+        
+        hanlab_result = benchmark({
+                    'golden': golden_res if args.golden_ref else None,
+                    'n_runs': nruns,
+                    'n_warmup': nwarmup,
+                    'name': 'HBSAttention_hanlab_bsattn'
+        }, hbsattn_reference_v4_hanlab_bsattn, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask_batched, causal, softmax_scale)
+        
         our_auto_result = benchmark({
                     'golden': golden_res,
                     'n_runs': nruns,
