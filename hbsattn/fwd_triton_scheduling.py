@@ -233,7 +233,8 @@ def _fwd_kernel(
         tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group):    
+def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group): 
+    start_time = time.time()   
     nhead, num_q_block, num_k_block = block_mask.shape
 
     # cu_num_q_group[batch_idx] = the start q group index of batch idx
@@ -253,7 +254,10 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     )
     q_group_to_batch[cu_num_q_group[1:-1]] = 1
     q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
-    
+    end_time = time.time()
+    print(f"q_group_to_batch time: {end_time - start_time:.3e} sec")
+
+    start_time = time.time()
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
     # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
     # q_assignment shape (nhead, num_q_group, num_block_per_group)
@@ -268,6 +272,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     end_time = time.time()
     print(f"backup scheduling time: {end_time - start_time:.3e} sec")
 
+    start_time = time.time()
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
     block_mask_extended = torch.cat([
         block_mask,
@@ -281,7 +286,8 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     ]  # [nhead, num_q_group, num_block_per_group, num_k_block]
     
     k_assignment = gathered_masks.any(dim=2).to(torch.bool).contiguous()  # [nhead, num_q_group, num_k_block]
-                
+    end_time = time.time()
+    print(f"k_assignment time: {end_time - start_time:.3e} sec")
     return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
 def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
