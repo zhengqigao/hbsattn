@@ -28,7 +28,7 @@ __all__ = ['_forward_scheduling']
     key=['BLOCK_M', 'BLOCK_N'],
 )
 @triton.jit
-def _fwd_kernel(
+def _fwd_kernel_groupsize2(
     q,
     k,
     v,
@@ -79,43 +79,57 @@ def _fwd_kernel(
     EVEN_HEADDIM: tl.constexpr,
     EVEN_SEQ_QBLOCK: tl.constexpr,
     EVEN_SEQ_KBLOCK: tl.constexpr,
-    NUM_BLOCK_PER_GROUP: tl.constexpr,
 ):
+    
     off_head_q = tl.program_id(1)
     off_head_k = off_head_q // head_q_to_k_ratio
     
     off_q_group = tl.program_id(0)
     off_dim = tl.arange(0, BLOCK_DIM)
     
-    off_block_m = tl.arange(0, BLOCK_M)
-    off_block_n = tl.arange(0, BLOCK_N)
+    # manually unroll the q assignment for groupsize 2
+    q1_assignment_ptr = q_assignment + off_head_k * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng
+    q2_assignment_ptr = q_assignment + off_head_k * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + 1
     
-    q_assignment_ptr = q_assignment + off_head_k * stride_q_assignment_nh + off_q_group * stride_q_assignment_ng + tl.arange(0, NUM_BLOCK_PER_GROUP)
-    off_q_block = tl.load(q_assignment_ptr) # shape (NUM_BLOCK_PER_GROUP,)
-    start_m_index = tl.load(cu_q_block + off_q_block)
-    end_m_index = tl.load(cu_q_block + off_q_block + 1)
+    off_q1_block = tl.load(q1_assignment_ptr)
+    off_q2_block = tl.load(q2_assignment_ptr)
     
-    end_m = tl.reshape(end_m_index[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int32), NUM_BLOCK_PER_GROUP * BLOCK_M)
-    off_m = tl.reshape(start_m_index[:,None] + off_block_m[None,:], NUM_BLOCK_PER_GROUP * BLOCK_M)
+    start_m1 = tl.load(cu_q_block + off_q1_block)
+    start_m2 = tl.load(cu_q_block + off_q2_block)
+
+    end_m1 = tl.load(cu_q_block + off_q1_block + 1)
+    end_m2 = tl.load(cu_q_block + off_q2_block + 1)
+        
+    off_m1 = tl.arange(0,BLOCK_M) + start_m1 
+    off_m2 = tl.arange(0,BLOCK_M) + start_m2
     
     # load the q block
-    q_ptr = q + off_m[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
+    q1_ptr = q + off_m1[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
+    q2_ptr = q + off_m2[:, None] * stride_q_s + off_head_q * stride_q_h + off_dim[None, :] * stride_q_d
+    
     if EVEN_SEQ_QBLOCK:
         if EVEN_HEADDIM:
-            q_block = tl.load(q_ptr)
+            q1_block = tl.load(q1_ptr)
+            q2_block = tl.load(q2_ptr)
         else:
-            q_block = tl.load(q_ptr, mask=off_dim[None, :] < headdim, other=0.0)
+            q1_block = tl.load(q1_ptr, mask=off_dim[None, :] < headdim, other=0.0)
+            q2_block = tl.load(q2_ptr, mask=off_dim[None, :] < headdim, other=0.0)
     else:
         if EVEN_HEADDIM:
-            q_block = tl.load(q_ptr, mask=off_m[:, None] < end_m[:,None], other=0.0)
+            q1_block = tl.load(q1_ptr, mask=off_m1[:, None] < end_m1, other=0.0)
+            q2_block = tl.load(q2_ptr, mask=off_m2[:, None] < end_m2, other=0.0)
         else:
-            q_block = tl.load(q_ptr, mask=(off_m[:, None] < end_m[:,None]) & (off_dim[None, :] < headdim), other=0.0)
+            q1_block = tl.load(q1_ptr, mask=(off_m1[:, None] < end_m1) & (off_dim[None, :] < headdim), other=0.0)
+            q2_block = tl.load(q2_ptr, mask=(off_m2[:, None] < end_m2) & (off_dim[None, :] < headdim), other=0.0)
     
 
     # accumulator
-    m_i = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP], dtype=tl.float32) - float('inf')
-    l_i = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP], dtype=tl.float32)
-    acc = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP, BLOCK_DIM], dtype=tl.float32)
+    m_i1 = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
+    m_i2 = tl.zeros([BLOCK_M], dtype=tl.float32) - float('inf')
+    l_i1 = tl.zeros([BLOCK_M], dtype=tl.float32)
+    l_i2 = tl.zeros([BLOCK_M], dtype=tl.float32)
+    acc1 = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
+    acc2 = tl.zeros([BLOCK_M, BLOCK_DIM], dtype=tl.float32)
     
 
     # batch index 
@@ -140,12 +154,12 @@ def _fwd_kernel(
         # 2. causal = False; or when causal = True && the end of the q block is after the start of the k block.
         # and (not causal or end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx)
         cond1 = tl.load(k_assignment + off_head_k * stride_k_assignment_nh + off_q_group * stride_k_assignment_ng + off_k_block)
-        cond2 = (not causal) or (end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx)
+        # cond2 = (not causal) or (end_m - batch_q_start_idx + offset >= start_n - batch_k_start_idx)
 
-        mask = tl.load(block_mask + off_head_k * stride_b_nh + off_q_block * stride_b_nq + off_k_block * stride_b_nk)
-        mask = tl.reshape(mask[:,None] + tl.zeros([NUM_BLOCK_PER_GROUP, BLOCK_M], dtype=tl.int1), NUM_BLOCK_PER_GROUP * BLOCK_M)
+        mask1 = tl.load(block_mask + off_head_k * stride_b_nh + off_q1_block * stride_b_nq + off_k_block * stride_b_nk)
+        mask2 = tl.load(block_mask + off_head_k * stride_b_nh + off_q2_block * stride_b_nq + off_k_block * stride_b_nk)
         
-        if cond1: # cond1 and cond2:    
+        if cond1:     
             end_n = tl.load(cu_k_block + off_k_block + 1)
             off_n = start_n + tl.arange(0, BLOCK_N)
             
@@ -176,64 +190,108 @@ def _fwd_kernel(
                                     mask = (off_n[:,None] < end_n) & (off_dim[None, :] < headdim), 
                                     other=0.0)
             
-            # Core part: online Softmax
-            qk = tl.zeros([BLOCK_M * NUM_BLOCK_PER_GROUP, BLOCK_N], dtype=tl.float32)
-            qk += tl.dot(q_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
-            qk *= softmax_scale
+            if mask1:
+            
+                # Core part: online Softmax
+                q1k = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
+                q1k += tl.dot(q1_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
+                q1k *= softmax_scale
 
-            m_ij = tl.maximum(m_i, tl.max(qk, 1))
-            qk -= m_ij[:, None]
-            
-            # tl.device_print("qk", qk)
-            
-            if causal:
-                qk += tl.where(off_m[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
-            
-            if not EVEN_SEQ_KBLOCK and start_n + BLOCK_N > end_n: 
-                qk += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
-            
-            qk += tl.where(mask[:,None], 0, float('-inf'))
-            
-            p = tl.exp(qk)
-            
-            l_ij = tl.sum(p, 1)
-            alpha = tl.exp(m_i - m_ij)
-            
-            l_i = l_i * alpha + l_ij
-            acc = acc * alpha[:, None]
-            p = p.to(v.type.element_ty)
-            
-            
-            acc += tl.dot(p, v_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
-            m_i = m_ij
+                m_ij1 = tl.maximum(m_i1, tl.max(q1k, 1))
+                q1k -= m_ij1[:, None]
+                
+                # tl.device_print("qk", qk)
+                
+                if causal:
+                    q1k += tl.where(off_m1[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
+                
+                if not EVEN_SEQ_KBLOCK and start_n + BLOCK_N > end_n: 
+                    q1k += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
+                
+                p1 = tl.exp(q1k)
+                
+                l_ij1 = tl.sum(p1, 1)
+                alpha1 = tl.exp(m_i1 - m_ij1)
+                
+                l_i1 = l_i1 * alpha1 + l_ij1
+                acc1 = acc1 * alpha1[:, None]
+                p1 = p1.to(v.type.element_ty)
+                
+                
+                acc1 += tl.dot(p1, v_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
+                m_i1 = m_ij1
+                
+            if mask2:
+                
+                q2k = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
+                q2k += tl.dot(q2_block, k_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
+                q2k *= softmax_scale
 
-    l_i = tl.where(l_i == 0, 1, l_i) # might be a working trick for the case when l_i is not updated at all. 
-    l_recip = 1 / l_i   
-    acc = acc * l_recip[:,None]
-    acc = acc.to(out.dtype.element_ty)
+                m_ij2 = tl.maximum(m_i2, tl.max(q2k, 1))
+                q2k -= m_ij2[:, None]
+                
+                if causal:
+                    q2k += tl.where(off_m2[:, None] - batch_q_start_idx + offset >= off_n[None, :] - batch_k_start_idx, 0, float('-inf'))
+                
+                if not EVEN_SEQ_KBLOCK and start_n + BLOCK_N > end_n: 
+                    q2k += tl.where(off_n[None,:] < end_n, 0, float('-inf'))
+                
+                p2 = tl.exp(q2k)
+                
+                l_ij2 = tl.sum(p2, 1)
+                alpha2 = tl.exp(m_i2 - m_ij2)
+                
+                l_i2 = l_i2 * alpha2 + l_ij2
+                acc2 = acc2 * alpha2[:, None]
+                p2 = p2.to(v.type.element_ty)
+                
+                acc2 += tl.dot(p2, v_block, allow_tf32=False) # Provdie allow_tf32=False can achieve better accuracy for float32. 
+                m_i2 = m_ij2
     
-    off_o = off_m[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
-    out_ptr = out + off_o
+    
+    l_i1 = tl.where(l_i1 == 0, 1, l_i1) # might be a working trick for the case when l_i is not updated at all. 
+    l_i2 = tl.where(l_i2 == 0, 1, l_i2) # might be a working trick for the case when l_i is not updated at all. 
+    l_recip1 = 1 / l_i1   
+    l_recip2 = 1 / l_i2   
+    acc1 = acc1 * l_recip1[:,None]
+    acc2 = acc2 * l_recip2[:,None]
+    acc1 = acc1.to(out.dtype.element_ty)
+    acc2 = acc2.to(out.dtype.element_ty)
+    
+    off_o1 = off_m1[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
+    off_o2 = off_m2[:, None] * stride_o_s + off_head_q * stride_o_h + off_dim[None, :] * stride_o_d
+    out_ptr1 = out + off_o1
+    out_ptr2 = out + off_o2
+    
     if EVEN_SEQ_QBLOCK:
         if EVEN_HEADDIM:
-            tl.store(out_ptr, acc)
+            tl.store(out_ptr1, acc1)
+            tl.store(out_ptr2, acc2)
         else:
-            tl.store(out_ptr, acc, mask=off_dim[None, :] < headdim)
+            tl.store(out_ptr1, acc1, mask=off_dim[None, :] < headdim)
+            tl.store(out_ptr2, acc2, mask=off_dim[None, :] < headdim)
     else:
         if EVEN_HEADDIM:
-            tl.store(out_ptr, acc, mask=off_m[:, None] < end_m[:,None])
+            tl.store(out_ptr1, acc1, mask=off_m1[:, None] < end_m1)
+            tl.store(out_ptr2, acc2, mask=off_m2[:, None] < end_m2)
         else:
-            tl.store(out_ptr, acc, mask=(off_m[:, None] < end_m[:,None]) & (off_dim[None, :] < headdim))
+            tl.store(out_ptr1, acc1, mask=(off_m1[:, None] < end_m1) & (off_dim[None, :] < headdim))
+            tl.store(out_ptr2, acc2, mask=(off_m2[:, None] < end_m2) & (off_dim[None, :] < headdim))
 
-    off_lse = off_head_q * stride_lse_h + off_m * stride_lse_s
+    off_lse1 = off_head_q * stride_lse_h + off_m1 * stride_lse_s
+    off_lse2 = off_head_q * stride_lse_h + off_m2 * stride_lse_s
 
     if EVEN_SEQ_QBLOCK:
-        tl.store(lse + off_lse, tl.log(l_i))
+        tl.store(lse + off_lse1, tl.log(l_i1))
+        tl.store(lse + off_lse2, tl.log(l_i2))
     else:
-        tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
+        tl.store(lse + off_lse1, tl.log(l_i1), mask = off_m1 < end_m1)
+        tl.store(lse + off_lse2, tl.log(l_i2), mask = off_m2 < end_m2)
 
 
-def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
+def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
+    
+    num_block_per_group = 2
     
     seq_len_q = q.shape[0]
     nhead_q = q.shape[1]
@@ -301,7 +359,7 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     # launch kernel
     grid = (num_q_group, nhead_q)
 
-    _fwd_kernel[grid](
+    _fwd_kernel_groupsize2[grid](
         q,
         k,
         v,
@@ -337,7 +395,6 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
         EVEN_HEADDIM = even_headdim,
         EVEN_SEQ_QBLOCK = EVEN_SEQ_QBLOCK,
         EVEN_SEQ_KBLOCK = EVEN_SEQ_KBLOCK,
-        NUM_BLOCK_PER_GROUP = num_block_per_group,
     )
     out = out[:seq_len_q,]
     lse = lse[:seq_len_q]
