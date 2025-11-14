@@ -150,8 +150,8 @@ if __name__ == "__main__":
                     'n_warmup': nwarmup,
                     'name': 'HBSAttention_auto_tilesize'
             }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', 
-                                    num_block_per_group = num_block_per_group, 
-                                    num_q_block = num_q_block, cu_q_block = cu_q_block, q_block_to_batch = q_block_to_batch, cu_num_q_block = cu_num_q_block, num_k_block = num_k_block, cu_k_block = cu_k_block, k_block_to_batch = k_block_to_batch, cu_num_k_block = cu_num_k_block)
+                                    num_block_per_group, 
+                                    num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
 
         our_fix_result = benchmark({
@@ -160,8 +160,8 @@ if __name__ == "__main__":
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_fix_tilesize'
             }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', 
-                                    num_block_per_group = num_block_per_group, 
-                                    num_q_block = num_q_block, cu_q_block = cu_q_block, q_block_to_batch = q_block_to_batch, cu_num_q_block = cu_num_q_block, num_k_block = num_k_block, cu_k_block = cu_k_block, k_block_to_batch = k_block_to_batch, cu_num_k_block = cu_num_k_block)
+                                    num_block_per_group, 
+                                    num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
         # similarly, this informaion cannot be amortized across different input sequences, but can across different attention layers.
         num_q_group, cu_num_q_group, q_group_to_batch = caculate_groups(cu_num_q_block, num_block_per_group)
@@ -172,6 +172,6 @@ if __name__ == "__main__":
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_scheduling'
             }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule, 
-                                    num_block_per_group = num_block_per_group, 
-                                    num_q_block = num_q_block, cu_q_block = cu_q_block, q_block_to_batch = q_block_to_batch, cu_num_q_block = cu_num_q_block, num_k_block = num_k_block, cu_k_block = cu_k_block, k_block_to_batch = k_block_to_batch, cu_num_k_block = cu_num_k_block,
-                                    num_q_group = num_q_group, cu_num_q_group = cu_num_q_group, q_group_to_batch = q_group_to_batch)
+                                    num_block_per_group, 
+                                    num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block,
+                                    num_q_group, cu_num_q_group, q_group_to_batch)
