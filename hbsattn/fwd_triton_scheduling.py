@@ -233,30 +233,7 @@ def _fwd_kernel(
         tl.store(lse + off_lse, tl.log(l_i), mask = off_m < end_m)
 
 
-def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group): 
-    start_time = time.time()   
-    nhead, num_q_block, num_k_block = block_mask.shape
-
-    # cu_num_q_group[batch_idx] = the start q group index of batch idx
-    cu_num_q_group = torch.zeros(
-        batch_size + 1,
-        device=block_mask.device,
-        dtype=torch.int32,
-    )
-    cu_num_q_group[1:] = torch.ceil((cu_num_q_block[1:] - cu_num_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
-    num_q_group = cu_num_q_group[-1]
-    
-    # q_group_to_batch[group_idx] = the batch id of the group idx
-    q_group_to_batch = torch.zeros(
-        num_q_group,
-        device=block_mask.device,
-        dtype=torch.int32,
-    )
-    q_group_to_batch[cu_num_q_group[1:-1]] = 1
-    q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
-    end_time = time.time()
-    print(f"q_group_to_batch time: {end_time - start_time:.3e} sec")
-
+def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch): 
 
     # q_assignment[head_idx, group_idx, :] = all the q blocks_idx assigned to group_idx for head_idx
     # Use `num_q_block` as the padding invalid index (it's out of bounds, the largest q block index = num_q_block - 1)
@@ -267,9 +244,6 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     end_time = time.perf_counter()
     torch.cuda.synchronize()
     print(f"given scheduling time: {end_time - start_time:.3e} sec")
-
-
-
 
     start_time = time.time()
     # k_assignment [head_idx, group_idx, i] = True, means the i-th K block need to be assigned to group_idx (required by some q blocks there)for head_idx
@@ -301,7 +275,7 @@ def _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block
     print(f"k_assignment time: {end_time - start_time:.3e} sec")
     return num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment
 
-def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block):
+def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group,cu_num_q_group, q_group_to_batch):
     
     seq_len_q = q.shape[0]
     nhead_q = q.shape[1]
@@ -327,10 +301,11 @@ def _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block
     even_headdim = headdim == BLOCK_DIM
     
     start_time = time.time()
-    num_q_group, cu_num_q_group, q_group_to_batch, q_assignment, k_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group)
+    q_assignment, k_assignment = _scheduling(block_mask, cu_num_q_block, batch_size, schedule_func, num_block_per_group, num_q_group,cu_num_q_group, q_group_to_batch)
     end_time = time.time()
     print(f"outer scheduling time: {end_time - start_time:.3e} sec")
     # print(f"num_block_per_group: {num_block_per_group}, num_q_group: {num_q_group}, cu_num_q_group: {cu_num_q_group}, q_group_to_batch: {q_group_to_batch}, q_assignment: {q_assignment}, k_assignment: {k_assignment}")
+    
     # launch kernel
     grid = (num_q_group, nhead_q)
 

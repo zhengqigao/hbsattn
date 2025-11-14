@@ -50,22 +50,29 @@ def calculate_blocks(cu_seqlen: torch.Tensor, block_size: int) -> tuple[int, tor
     )
 
 
-# def caculate_groups(cu_num_q_block, num_block_per_group): 
+def caculate_groups(cu_num_q_block, num_block_per_group): 
 
-#     # cu_num_q_group[batch_idx] = the start q group index of batch idx
-#     cu_num_q_group = torch.zeros(
-#         batch_size + 1,
-#         device=block_mask.device,
-#         dtype=torch.int32,
-#     )
-#     cu_num_q_group[1:] = torch.ceil((cu_num_q_block[1:] - cu_num_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
-#     num_q_group = cu_num_q_group[-1]
+    batch_size = len(cu_num_q_block) - 1
+    # cu_num_q_group[batch_idx] = the start q group index of batch idx
+    cu_num_q_group = torch.zeros(
+        batch_size + 1,
+        device=cu_num_q_block.device,
+        dtype=torch.int32,
+    )
+    cu_num_q_group[1:] = torch.ceil((cu_num_q_block[1:] - cu_num_q_block[:-1]) / num_block_per_group).cumsum(dim=0)
+    num_q_group = cu_num_q_group[-1]
     
-#     # q_group_to_batch[group_idx] = the batch id of the group idx
-#     q_group_to_batch = torch.zeros(
-#         num_q_group,
-#         device=block_mask.device,
-#         dtype=torch.int32,
-#     )
-#     q_group_to_batch[cu_num_q_group[1:-1]] = 1
-#     q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
+    # q_group_to_batch[group_idx] = the batch id of the group idx
+    q_group_to_batch = torch.zeros(
+        num_q_group,
+        device=cu_num_q_block.device,
+        dtype=torch.int32,
+    )
+    q_group_to_batch[cu_num_q_group[1:-1]] = 1
+    q_group_to_batch = q_group_to_batch.cumsum(dim=0, dtype=torch.int32)
+    
+    return (
+        num_q_group, # the total number of q groups
+        cu_num_q_group, # cu_num_q_group[batch_idx+1] - cu_num_q_group[batch_idx] means the number of q blocks in the batch idx
+        q_group_to_batch, # q_group_to_batch[group_idx] represents the batch index of group_idx
+    )

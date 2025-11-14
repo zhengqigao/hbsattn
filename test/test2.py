@@ -15,7 +15,7 @@ from hbsattn.reference import (
 
 from flash_attn import flash_attn_varlen_func
 
-from hbsattn.utils import calculate_blocks
+from hbsattn.utils import calculate_blocks, caculate_groups
 from hbsattn.schedule import base_schedule
 from hbsattn.benchmark import benchmark
 import argparse
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--sparse_ratio', type=float, default=0.3)
     parser.add_argument('--num_block_per_group', type=int, default=1, help='the number of blocks per group, used only for hbsattn (scheduling mode)')
     parser.add_argument('--block_size', type=int, default=16)
+    parser.add_argument('--provide-info', action='store_true', default=False)
     args = parser.parse_args()
         
     nruns = args.nruns
@@ -116,30 +117,61 @@ if __name__ == "__main__":
     
     golden_res = hbsattn_reference_v1_base(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
 
+    #  The `calculate_blocks` function returns num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block
+    #  These information is one-time calcualtion for the same sequence to pass through all attention layers, so can be amortized.
+    #  Note when the input change, these information should be recalculated.
+    #  In other words, they cannot be amortized across different input sequences, but can across different attention layers.
+    #  Providing the args.provide_info can give us two different ways of measuring runtime.
+    if not args.provide_info:
+        our_auto_result = benchmark({
+                    'golden': golden_res,
+                    'n_runs': nruns,
+                    'n_warmup': nwarmup,
+                    'name': 'HBSAttention_auto_tilesize'
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_block_per_group, )
 
-
-    our_auto_result = benchmark({
+        our_fix_result = benchmark({
                 'golden': golden_res,
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
-                'name': 'HBSAttention_auto_tilesize'
-        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', num_block_per_group, )
+                'name': 'HBSAttention_fix_tilesize'
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_block_per_group, )
 
-    # num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block
+        our_scheduling_result = benchmark({
+                'golden': golden_res,
+                'n_runs': nruns,
+                'n_warmup': nwarmup,
+                'name': 'HBSAttention_scheduling'
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule, num_block_per_group, )
+    else:
+        our_auto_result = benchmark({
+                    'golden': golden_res,
+                    'n_runs': nruns,
+                    'n_warmup': nwarmup,
+                    'name': 'HBSAttention_auto_tilesize'
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'auto', 
+                                    num_block_per_group = num_block_per_group, 
+                                    num_q_block = num_q_block, cu_q_block = cu_q_block, q_block_to_batch = q_block_to_batch, cu_num_q_block = cu_num_q_block, num_k_block = num_k_block, cu_k_block = cu_k_block, k_block_to_batch = k_block_to_batch, cu_num_k_block = cu_num_k_block)
 
 
-    our_fix_result = benchmark({
-            'golden': golden_res,
-            'n_runs': nruns,
-            'n_warmup': nwarmup,
-            'name': 'HBSAttention_fix_tilesize'
-        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', num_block_per_group, )
+        our_fix_result = benchmark({
+                'golden': golden_res,
+                'n_runs': nruns,
+                'n_warmup': nwarmup,
+                'name': 'HBSAttention_fix_tilesize'
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, 'fix', 
+                                    num_block_per_group = num_block_per_group, 
+                                    num_q_block = num_q_block, cu_q_block = cu_q_block, q_block_to_batch = q_block_to_batch, cu_num_q_block = cu_num_q_block, num_k_block = num_k_block, cu_k_block = cu_k_block, k_block_to_batch = k_block_to_batch, cu_num_k_block = cu_num_k_block)
 
-    # num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block
-    our_scheduling_result = benchmark({
-            'golden': golden_res,
-            'n_runs': nruns,
-            'n_warmup': nwarmup,
-            'name': 'HBSAttention_scheduling'
-        }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule, num_block_per_group, )
-    # num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block
+        # similarly, this informaion cannot be amortized across different input sequences, but can across different attention layers.
+        cu_num_q_group, q_group_to_batch = caculate_groups(cu_num_q_block, num_block_per_group)
+
+        our_scheduling_result = benchmark({
+                'golden': golden_res,
+                'n_runs': nruns,
+                'n_warmup': nwarmup,
+                'name': 'HBSAttention_scheduling'
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule, 
+                                    num_block_per_group = num_block_per_group, 
+                                    num_q_block = num_q_block, cu_q_block = cu_q_block, q_block_to_batch = q_block_to_batch, cu_num_q_block = cu_num_q_block, num_k_block = num_k_block, cu_k_block = cu_k_block, k_block_to_batch = k_block_to_batch, cu_num_k_block = cu_num_k_block,
+                                    cu_num_q_group = cu_num_q_group, q_group_to_batch = q_group_to_batch)
