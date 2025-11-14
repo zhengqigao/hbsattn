@@ -6,7 +6,8 @@ import triton.language as tl
 import torch.nn.functional as F
 from hbsattn.utils import calculate_blocks
 from hbsattn.schedule import *
-__all__ = ['_forward_scheduling']
+
+__all__ = ['_forward_scheduling_groupsize2']
 
 @triton.autotune(
     configs=[
