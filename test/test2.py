@@ -16,7 +16,7 @@ from hbsattn.reference import (
 from flash_attn import flash_attn_varlen_func
 
 from hbsattn.utils import calculate_blocks, caculate_groups
-from hbsattn.schedule import base_schedule
+from hbsattn.schedule import *
 from hbsattn.benchmark import benchmark
 import argparse
 import json
@@ -171,7 +171,7 @@ if __name__ == "__main__":
                 'n_runs': nruns,
                 'n_warmup': nwarmup,
                 'name': 'HBSAttention_scheduling'
-            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule, 
+            }, HBSAttention, q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, base_schedule_optimized_v3, 
                                     num_block_per_group, 
                                     num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block,
                                     num_q_group, cu_num_q_group, q_group_to_batch)

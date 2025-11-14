@@ -289,7 +289,7 @@ def _fwd_kernel_groupsize2(
         tl.store(lse + off_lse2, tl.log(l_i2), mask = off_m2 < end_m2)
 
 
-def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, schedule_func, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
+def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch):
     
     num_block_per_group = 2
     
@@ -319,7 +319,7 @@ def _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_ma
 
     torch.cuda.synchronize()
     start_time = time.perf_counter()
-    q_assignment = schedule_func(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
+    q_assignment = base_schedule_optimized_v3(num_block_per_group, block_mask, num_q_block, num_q_group, q_group_to_batch, cu_num_q_group, cu_num_q_block)
     end_time = time.perf_counter()
     torch.cuda.synchronize()
     print(f"given scheduling time: {end_time - start_time:.3e} sec")

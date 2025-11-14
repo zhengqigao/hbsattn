@@ -1,6 +1,7 @@
 import torch 
 from hbsattn.fwd_triton_fix_tile_size import _forward_fix_tile_size
 from hbsattn.fwd_triton_auto_tile_size import _forward_auto_tile_size
+from hbsattn.fwd_triton_scheduling_groupsize2 import _forward_scheduling_groupsize2
 from hbsattn.fwd_triton_scheduling import _forward_scheduling
 from hbsattn.utils import calculate_blocks,caculate_groups
 
@@ -26,7 +27,9 @@ class _HBSAttentionFunction(torch.autograd.Function):
                 num_q_group, cu_num_q_group, q_group_to_batch = caculate_groups(cu_num_q_block, num_block_per_group)
             
             return _forward_scheduling(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, tile_mode, num_block_per_group, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch)
-        
+        elif tile_mode == 'groupsize2':
+            assert num_block_per_group == 2, "num_block_per_group must be 2 for groupsize2"
+            return _forward_scheduling_groupsize2(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block, num_q_group, cu_num_q_group, q_group_to_batch)
         elif tile_mode == 'auto': # the kernel will be lanunched with tile size (BLOCK_M, BLOCK_N) to be factors of q_block_size and k_block_size
             
             return _forward_auto_tile_size(q, k, v, cu_q_seqlens, cu_k_seqlens, block_mask, q_block_size, k_block_size, causal, softmax_scale, num_q_block, cu_q_block, q_block_to_batch, cu_num_q_block, num_k_block, cu_k_block, k_block_to_batch, cu_num_k_block)
